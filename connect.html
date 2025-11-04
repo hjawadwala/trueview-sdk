@@ -112,7 +112,7 @@
       <h1>TrueView Quick Connect</h1>
     </header>
 
-    <main class="container">
+  <main class="container">
       <section class="card">
         <h2>Connection</h2>
         <form id="connect-form" class="form-grid">
@@ -171,6 +171,106 @@
         <div class="toolbar">
           <button id="btnSnapshot" type="button" class="secondary">Snapshot</button>
           <button id="btnMute" type="button" class="secondary">Toggle Audio</button>
+        </div>
+      </section>
+
+      <!-- Tabs: Device settings and Playback history -->
+      <section class="card" id="tabs-card">
+        <div class="toolbar" style="margin:0 0 12px 0">
+          <button type="button" class="secondary" id="tabDevice">Device Settings</button>
+          <button type="button" class="secondary" id="tabPlayback">Playback History</button>
+        </div>
+
+        <div id="panelDevice">
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+            <div>
+              <label>Main Stream Codec</label>
+              <div id="dev_main_codec" class="status">—</div>
+            </div>
+            <div>
+              <label>Sub Stream Codec</label>
+              <div id="dev_sub_codec" class="status">—</div>
+            </div>
+
+            <div>
+              <label>Flip</label>
+              <div id="dev_flip" class="status">—</div>
+            </div>
+            <div>
+              <label>Mirror</label>
+              <div id="dev_mirror" class="status">—</div>
+            </div>
+
+            <div>
+              <label>Audio Enabled</label>
+              <div id="dev_audio_enabled" class="status">—</div>
+            </div>
+            <div>
+              <label>Audio Volume (In/Out)</label>
+              <div id="dev_audio_volume" class="status">—</div>
+            </div>
+
+            <div>
+              <label>IR Mode</label>
+              <div id="dev_ir" class="status">—</div>
+            </div>
+            <div>
+              <label>Usage Scenario</label>
+              <div id="dev_usage" class="status">—</div>
+            </div>
+
+            <div>
+              <label>Record Mode</label>
+              <div id="dev_rec_mode" class="status">—</div>
+            </div>
+            <div>
+              <label>Motion Detect</label>
+              <div id="dev_md" class="status">—</div>
+            </div>
+
+            <div>
+              <label>TF Card</label>
+              <div id="dev_tf" class="status">—</div>
+            </div>
+            <div>
+              <label>LTE</label>
+              <div id="dev_lte" class="status">—</div>
+            </div>
+          </div>
+
+          <div class="toolbar" style="margin-top:14px">
+            <button type="button" id="btnRefreshDevice" class="secondary">Refresh Device Info</button>
+          </div>
+        </div>
+
+        <div id="panelPlayback" style="display:none">
+          <div class="row" style="margin-bottom:10px">
+            <div>
+              <label for="pbDate">Date</label>
+              <input id="pbDate" type="date" />
+            </div>
+            <div>
+              <label for="pbChannel">Channel</label>
+              <input id="pbChannel" type="number" min="0" step="1" value="0" />
+            </div>
+          </div>
+          <div class="toolbar" style="margin-bottom:8px">
+            <button type="button" id="btnSearchRecords">Search</button>
+          </div>
+          <div style="overflow:auto; max-height: 320px; border:1px solid rgba(255,255,255,.08); border-radius:10px;">
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+              <thead>
+                <tr style="background:rgba(255,255,255,.04)">
+                  <th style="text-align:left; padding:8px; border-bottom:1px solid rgba(255,255,255,.08);">Start</th>
+                  <th style="text-align:left; padding:8px; border-bottom:1px solid rgba(255,255,255,.08);">End</th>
+                  <th style="text-align:left; padding:8px; border-bottom:1px solid rgba(255,255,255,.08);">Duration (s)</th>
+                  <th style="text-align:left; padding:8px; border-bottom:1px solid rgba(255,255,255,.08);">Type</th>
+                  <th style="text-align:left; padding:8px; border-bottom:1px solid rgba(255,255,255,.08);">Action</th>
+                </tr>
+              </thead>
+              <tbody id="historyBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
     </main>
@@ -234,6 +334,9 @@
         if (result === 0) {
           setStatus(`Playing • CH ${channel} • ${streamid === 0 ? 'Main' : 'Sub'}`, 'ok');
           $('#btnConnect').disabled = false;
+          // Auto: fetch device info and today’s history
+          try { fetchDeviceInfo(); } catch (e) { console.warn(e); }
+          try { initPlaybackDate(); searchRecords(); } catch (e) { console.warn(e); }
         } else {
           setStatus('Open stream failed', 'err');
           $('#btnConnect').disabled = false;
@@ -269,6 +372,155 @@
           audioOn = !audioOn;
         } catch (e) { console.error(e); }
       });
+
+      // Tabs behavior
+      const tabDevice = $('#tabDevice');
+      const tabPlayback = $('#tabPlayback');
+      const panelDevice = $('#panelDevice');
+      const panelPlayback = $('#panelPlayback');
+      function showTab(which){
+        if(which === 'device'){ panelDevice.style.display='block'; panelPlayback.style.display='none'; }
+        else { panelDevice.style.display='none'; panelPlayback.style.display='block'; }
+      }
+      tabDevice.addEventListener('click', () => showTab('device'));
+      tabPlayback.addEventListener('click', () => showTab('playback'));
+
+      // Device info fetch/render
+      function buildGetConfig(){
+        const username = $('#username').value.trim();
+        const password = $('#password').value;
+        return {
+          Version: '1.3.0',
+          Method: 'get',
+          IPCam: {
+            ModeSetting: {},
+            videoManager: {},
+            AlarmSetting: { MotionDetection: {} },
+            ChannelStatus: {},
+            LTE: {},
+            TfcardManager: {}
+          },
+          Authorization: { Verify: '', username, password }
+        };
+      }
+
+      function fetchDeviceInfo(){
+        const devid = $('#deviceId').value.trim();
+        if(!devid) return;
+        const session = GetSessionById(devid);
+        if(!session){ setStatus('Not connected', 'warn'); return; }
+        const cfg = JSON.stringify(buildGetConfig());
+        ConnectApi.remote_setup2(session, cfg);
+      }
+
+      function text(val){ return (val===undefined||val===null||val==='') ? '—' : String(val); }
+      function yesno(b){ return b ? 'Yes' : 'No'; }
+      function renderDevice(config){
+        // videoManager may be single object; stream info often needs dedicated calls. Display what we have.
+        const vm = config?.IPCam?.videoManager || {};
+        // If encType corresponds to current streamId in reply, just show it on proper label
+        if(vm.streamId === 1) $('#dev_main_codec').textContent = text(vm.encType);
+        if(vm.streamId === 2) $('#dev_sub_codec').textContent = text(vm.encType);
+        if(vm.flipEnabled !== undefined) $('#dev_flip').textContent = yesno(vm.flipEnabled);
+        if(vm.mirrorEnabled !== undefined) $('#dev_mirror').textContent = yesno(vm.mirrorEnabled);
+
+        const ms = config?.IPCam?.ModeSetting || {};
+        if(ms.AudioEnabled !== undefined) $('#dev_audio_enabled').textContent = yesno(ms.AudioEnabled);
+        if(ms.AudioVolume) $('#dev_audio_volume').textContent = `${text(ms.AudioVolume.AudioInputVolume)}/${text(ms.AudioVolume.AudioOutputVolume)}`;
+        if(ms.IRCutFilterMode) $('#dev_ir').textContent = text(ms.IRCutFilterMode);
+        if(ms.usageScenario) $('#dev_usage').textContent = text(ms.usageScenario);
+
+        const wm = config?.IPCam?.WorkMode || {};
+        if(wm.Mode) $('#dev_rec_mode').textContent = text(wm.Mode);
+
+        const md = config?.IPCam?.AlarmSetting?.MotionDetection || {};
+        if(md){ $('#dev_md').textContent = `WarnTone: ${yesno(md.MotionWarningTone)} · Track: ${yesno(md.motionTrackEnabled)} · Dur: ${text(md.MdRecDuration)}s`; }
+
+        const tf = config?.IPCam?.TfcardManager || {};
+        if(tf) $('#dev_tf').textContent = `${text(tf.Status)} · ${text(tf.TotalSpacesize)}M / ${text(tf.LeaveSpacesize)}M`;
+
+        const lte = config?.IPCam?.Lte || config?.IPCam?.LTE || {};
+        if(lte) $('#dev_lte').textContent = `${text(lte.OperatorsName)} · ${text(lte.Signal)}`;
+      }
+
+      // Hook device info callback (string JSON)
+      const _onRemoteSetup = ConnectApi.onRemoteSetup;
+      ConnectApi.onRemoteSetup = function(remote_str){
+        try { _onRemoteSetup && _onRemoteSetup(remote_str); } catch(_) {}
+        try {
+          const cfg = JSON.parse(remote_str);
+          renderDevice(cfg);
+        } catch(e){ console.warn('RemoteSetup parse error', e); }
+      };
+
+      $('#btnRefreshDevice').addEventListener('click', fetchDeviceInfo);
+
+      // Playback history
+      function initPlaybackDate(){
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth()+1).padStart(2,'0');
+        const dd = String(d.getDate()).padStart(2,'0');
+        $('#pbDate').value = `${yyyy}-${mm}-${dd}`;
+        $('#pbChannel').value = $('#channel').value || '0';
+      }
+
+      function searchRecords(){
+        const devid = $('#deviceId').value.trim();
+        const channel = parseInt($('#pbChannel').value,10) || 0;
+        const dateStr = $('#pbDate').value; // yyyy-mm-dd
+        if(!devid || !dateStr) return;
+        const date = new Date(dateStr);
+        if(Number.isNaN(date.getTime())) return;
+        const YY = date.getFullYear();
+        const MM = String(date.getMonth()+1).padStart(2,'0');
+        const DD = String(date.getDate()).padStart(2,'0');
+        const begin = new Date(`${YY}-${MM}-${DD} 00:00:00`);
+        const end = new Date(`${YY}-${MM}-${DD} 23:59:59`);
+        let begintime = Math.floor(begin.getTime()/1000) - new Date().getTimezoneOffset()*60;
+        let endtime = Math.floor(end.getTime()/1000) - new Date().getTimezoneOffset()*60;
+        // Clear table
+        $('#historyBody').innerHTML = '';
+        Player.SreachRecord(devid, '', channel, begintime, endtime, 15);
+      }
+
+      $('#btnSearchRecords').addEventListener('click', searchRecords);
+
+      // Replace record callback to fill our table
+      ConnectApi.onRecordFetch = function(file_type, file_begintime, file_endtime, INDEX){
+        const tr = document.createElement('tr');
+        const td1 = document.createElement('td');
+        const td2 = document.createElement('td');
+        const td3 = document.createElement('td');
+        const td4 = document.createElement('td');
+        const td5 = document.createElement('td');
+
+        td1.style.padding = td2.style.padding = td3.style.padding = td4.style.padding = td5.style.padding = '8px';
+        td1.style.borderBottom = td2.style.borderBottom = td3.style.borderBottom = td4.style.borderBottom = td5.style.borderBottom = '1px solid rgba(255,255,255,.08)';
+
+        const startLocal = new Date((file_begintime + new Date().getTimezoneOffset()*60) * 1000).toLocaleString();
+        const endLocal = new Date((file_endtime + new Date().getTimezoneOffset()*60) * 1000).toLocaleString();
+        const dur = (file_endtime - file_begintime);
+        const typ = (file_type == 1 ? 'Schedule' : 'Alarm');
+        td1.textContent = startLocal;
+        td2.textContent = endLocal;
+        td3.textContent = String(dur);
+        td4.textContent = typ;
+        const btn = document.createElement('button');
+        btn.textContent = 'Play';
+        btn.className = 'secondary';
+        btn.addEventListener('click', () => {
+          const devid = $('#deviceId').value.trim();
+          const channel = parseInt($('#pbChannel').value,10) || 0;
+          // tasktype=0 play in window 0
+          Player.StartPlayBack(devid, '', channel, file_begintime, file_endtime, file_type, 0, false, 0);
+          showTab('playback');
+        });
+        td5.appendChild(btn);
+
+        tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4); tr.appendChild(td5);
+        $('#historyBody').appendChild(tr);
+      };
     </script>
   </body>
   </html>
