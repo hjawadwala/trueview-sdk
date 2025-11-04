@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TrueView SDK • Quick Connect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg-1: #0f172a; /* slate-900 */
+        --bg-2: #111827; /* gray-900 */
+        --card: #0b1220; /* deep */
+        --muted: #a1a1aa; /* zinc-400 */
+        --text: #e5e7eb; /* gray-200 */
+        --accent: #22d3ee; /* cyan-400 */
+        --accent-2: #60a5fa; /* blue-400 */
+        --danger: #ef4444;
+        --success: #22c55e;
+        --shadow: 0 10px 40px rgba(0,0,0,.45);
+      }
+
+      html, body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        color: var(--text);
+        background: radial-gradient(1000px 600px at 10% 10%, rgba(34,211,238,.08), transparent 60%),
+                    radial-gradient(800px 500px at 100% 0%, rgba(96,165,250,.08), transparent 60%),
+                    linear-gradient(180deg, var(--bg-1), var(--bg-2));
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+
+      header {
+        padding: 18px 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-bottom: 1px solid rgba(255,255,255,.06);
+        backdrop-filter: blur(6px);
+      }
+      header img {
+        height: 28px;
+      }
+      header h1 {
+        font-size: 16px;
+        margin: 0;
+        font-weight: 600;
+        letter-spacing: .3px;
+      }
+
+      .container {
+        padding: 24px;
+        display: grid;
+        grid-template-columns: 380px 1fr;
+        gap: 24px;
+        max-width: 1400px;
+        width: 100%;
+        margin: 0 auto;
+        box-sizing: border-box;
+      }
+
+      .card {
+        background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)) border-box,
+                    linear-gradient(180deg, rgba(34,211,238,.35), rgba(96,165,250,.25)) padding-box;
+        border: 1px solid transparent;
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: var(--shadow);
+      }
+
+      .card h2 {
+        margin: 0 0 14px 0;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: .3px;
+        color: #fff;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+      input, select, button {
+        width: 100%;
+        box-sizing: border-box;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,.12);
+        background: rgba(8,11,19,.65);
+        color: #e5e7eb;
+        padding: 10px 12px;
+        outline: none;
+        transition: border-color .15s ease, box-shadow .15s ease;
+      }
+      input::placeholder { color: #9ca3af; }
+      input:focus, select:focus {
+        border-color: rgba(34,211,238,.6);
+        box-shadow: 0 0 0 3px rgba(34,211,238,.18);
+      }
+      button {
+        cursor: pointer;
+        font-weight: 600;
+        background: linear-gradient(135deg, rgba(34,211,238,.9), rgba(96,165,250,.9));
+        border: none;
+      }
+      button.secondary {
+        background: transparent;
+        border: 1px solid rgba(255,255,255,.15);
+      }
+      button:disabled { opacity: .6; cursor: not-allowed; }
+
+      .status {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--muted);
+        min-height: 18px;
+      }
+
+      .player-card { position: relative; }
+      .canvas-wrap {
+        background: #000;
+        border-radius: 14px;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(255,255,255,.06);
+      }
+      canvas {
+        width: 100%;
+        height: auto;
+        max-height: calc(100vh - 200px);
+        display: block;
+        background: #000;
+      }
+
+      .pill {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        padding: 6px 10px;
+        font-size: 12px;
+        border-radius: 999px;
+        background: rgba(17, 24, 39, .75);
+        border: 1px solid rgba(255,255,255,.12);
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      footer { padding: 10px 24px; color: var(--muted); font-size: 12px; text-align: center; }
+
+      @media (max-width: 1100px) {
+        .container { grid-template-columns: 1fr; }
+      }
+    </style>
+    <!-- Core SDK scripts (mirror indexEN.html order where possible) -->
+    <script src="./decoder_def.js"></script>
+    <script src="./jadecoder.js"></script>
+    <script src="./hevcdec.js"></script>
+    <script src="./glutils.js"></script>
+    <script src="./connector.js"></script>
+    <script src="./md5.js"></script>
+  </head>
+  <body>
+    <header>
+      <img src="./logo_bg.png" alt="TrueView" />
+      <h1>TrueView Quick Connect</h1>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <h2>Connection</h2>
+        <form id="connect-form" class="form-grid">
+          <div>
+            <label for="deviceId">Device ID</label>
+            <input id="deviceId" name="deviceId" type="text" placeholder="e.g. 924957972" required />
+          </div>
+
+          <div class="row">
+            <div>
+              <label for="username">Username</label>
+              <input id="username" name="username" type="text" value="admin" required />
+            </div>
+            <div>
+              <label for="password">Password</label>
+              <input id="password" name="password" type="password" placeholder="••••••" />
+            </div>
+          </div>
+
+          <div class="row-3">
+            <div>
+              <label for="stream">Stream</label>
+              <select id="stream" name="stream">
+                <option value="0">Main</option>
+                <option value="1" selected>Sub</option>
+              </select>
+            </div>
+            <div>
+              <label for="channel">Channel</label>
+              <input id="channel" name="channel" type="number" min="0" step="1" value="0" />
+            </div>
+            <div>
+              <label for="protocol">Protocol</label>
+              <select id="protocol" name="protocol">
+                <option value="wss" selected>WSS (secure)</option>
+                <option value="ws">WS</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <button id="btnConnect" type="submit">Connect & Play</button>
+            <button id="btnDisconnect" type="button" class="secondary">Disconnect</button>
+          </div>
+
+          <div id="status" class="status">Idle</div>
+        </form>
+      </section>
+
+      <section class="card player-card">
+        <div class="pill" id="pill">Ready</div>
+        <div class="canvas-wrap">
+          <!-- Use 960x640 like indexEN for compatibility -->
+          <canvas id="canvas" width="960" height="640"></canvas>
+        </div>
+        <div class="toolbar">
+          <button id="btnSnapshot" type="button" class="secondary">Snapshot</button>
+          <button id="btnMute" type="button" class="secondary">Toggle Audio</button>
+        </div>
+      </section>
+    </main>
+
+    <footer>Powered by TrueView SDK</footer>
+
+    <!-- Player helpers -->
+    <script src="./play.js"></script>
+    <script src="./g711a_al.js"></script>
+    <script>
+      // Minimal UI helpers
+      const $ = (sel) => document.querySelector(sel);
+      const statusEl = $('#status');
+      const pillEl = $('#pill');
+      const canvas = $('#canvas');
+      let audioOn = false;
+
+      function setStatus(text, tone = 'muted') {
+        statusEl.textContent = text;
+        if (tone === 'ok') { pillEl.textContent = 'Playing'; pillEl.style.borderColor = 'rgba(34,197,94,.5)'; }
+        else if (tone === 'warn') { pillEl.textContent = 'Connecting…'; pillEl.style.borderColor = 'rgba(250,204,21,.5)'; }
+        else if (tone === 'err') { pillEl.textContent = 'Error'; pillEl.style.borderColor = 'rgba(239,68,68,.5)'; }
+        else { pillEl.textContent = 'Ready'; pillEl.style.borderColor = 'rgba(255,255,255,.15)'; }
+      }
+
+      // Initialize player on load
+      window.addEventListener('DOMContentLoaded', () => {
+        try {
+          Player.init([canvas]);
+          setStatus('Ready to connect');
+        } catch (e) {
+          console.error(e);
+          setStatus('Failed to initialize player', 'err');
+        }
+      });
+
+      // Connect flow: connectType = 1 so stream opens after login
+      $('#connect-form').addEventListener('submit', (ev) => {
+        ev.preventDefault();
+
+        const deviceId = $('#deviceId').value.trim();
+        const username = $('#username').value.trim();
+        const password = $('#password').value;
+        const stream = parseInt($('#stream').value, 10) || 1;
+        const channel = parseInt($('#channel').value, 10) || 0;
+        const protocol = $('#protocol').value; // 'wss' or 'ws'
+
+        if (!deviceId) { setStatus('Please enter a device ID', 'warn'); return; }
+
+        $('#btnConnect').disabled = true;
+        setStatus('Connecting…', 'warn');
+
+        try {
+          // winindex = 0 (single canvas), connectType = 1 (connect and open stream)
+          Player.ConnectDevice(deviceId, '', username, password, 0, 80, 1, channel, stream, protocol, null);
+          // If session already exists and is logged in, ensure stream opens
+          Player.OpenStream(deviceId, '', channel, stream, 0);
+        } catch (e) {
+          console.error(e);
+          setStatus('Connection error', 'err');
+          $('#btnConnect').disabled = false;
+          return;
+        }
+
+        // Give a bit of time and update UI; play.js will open after login
+        setTimeout(() => setStatus('Negotiating P2P / Login…', 'warn'), 250);
+      });
+
+      // Optional: basic status taps by observing open/close calls
+      const _onopenstream = ConnectApi.onopenstream;
+      ConnectApi.onopenstream = function(api_conn, channel, streamid, result, cam_desc) {
+        try { _onopenstream && _onopenstream(api_conn, channel, streamid, result, cam_desc); } catch (_) {}
+        if (result === 0) {
+          setStatus(`Playing • CH ${channel} • ${streamid === 0 ? 'Main' : 'Sub'}`, 'ok');
+          $('#btnConnect').disabled = false;
+        } else {
+          setStatus('Open stream failed', 'err');
+          $('#btnConnect').disabled = false;
+        }
+      };
+
+      const _ondisconnect = ConnectApi.ondisconnect;
+      ConnectApi.ondisconnect = function(api_conn, code) {
+        try { _ondisconnect && _ondisconnect(api_conn, code); } catch (_) {}
+        setStatus('Disconnected');
+      };
+
+      // Controls
+      $('#btnDisconnect').addEventListener('click', () => {
+        const deviceId = $('#deviceId').value.trim();
+        if (!deviceId) return;
+        try {
+          Player.DisConnectDevice(deviceId, '');
+          setStatus('Disconnected');
+        } catch (e) {
+          console.error(e);
+          setStatus('Disconnect error', 'err');
+        }
+      });
+
+      $('#btnSnapshot').addEventListener('click', () => {
+        try { Player.Snapshot(0, 'snapshot.png'); } catch(e) { console.error(e); }
+      });
+
+      $('#btnMute').addEventListener('click', () => {
+        try {
+          if (audioOn) { Player.CloseAudio(0); setStatus('Audio: Off'); }
+          else { Player.OpenAudio(0); setStatus('Audio: On'); }
+          audioOn = !audioOn;
+        } catch (e) { console.error(e); }
+      });
+    </script>
+  </body>
+  </html>

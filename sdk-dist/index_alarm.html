@@ -1,0 +1,811 @@
+<!-- Licensed under a BSD license. See license.html for license -->
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+	<!-- <title>test</title> -->
+	<!-- <link type="text/css" href="resources/webgl-tutorials.css" rel="stylesheet" /> -->
+	<style>
+		html,
+		body {
+			width: 100%;
+			height: 100%;
+			/* overflow: auto; */
+			background: #fff;
+
+		}
+
+		/* body{
+			position:fixed;
+			top: 0;
+			left: 0;
+			display: flex;
+			flex-direction: column;
+			overflow-y:auto;
+
+		} */
+
+		canvas {
+			width: 704px;
+			height: 576px;
+			margin: 2px;
+			border: 1px solid black;
+		}
+	</style>
+	<script src="./decoder_def.js"></script>
+	<script src="./jadecoder.js"></script>
+	<script src="./hevcdec.js"></script>
+	<script src="./glutils.js"></script>
+	<script src="./connector.js"></script>
+	<script src="./audioplay.js"></script>
+	<script>
+	</script>
+</head>
+
+<body onload="init();">
+	<span>设备ID：</span>
+	<input type="text" id="dev_id" value="4837278254">
+	<!--4837278254-->
+	<span>用户名：</span>
+	<input type="text" id="user" value="admin">
+	<span>密码：</span>
+	<input type="text" id="pwd" value="">
+	<select id="streamtype" style="width:100px">
+		<option value=0>主码流</option>
+		<option value=1 selected>子码流</option>
+	</select>
+	<select id="channel" style="width:100px">
+		<option value=0>通道1</option>
+		<option value=1>通道2</option>
+		<option value=2>通道3</option>
+		<option value=3>通道4</option>
+	</select>
+	<br />
+	<span>预览</span>
+	<br />
+	<button onclick="connect()" style="width:100px">连接设备</button>
+	<button onclick="disconnect()" style="width:100px">断开连接</button>
+	<button onclick="openvideo()" style="width:100px">打开码流</button>
+	<!--button onclick="playnext()" style="width:100px">next video</button-->
+	<button onclick="changestream()" style="width:110px">切换码流</button>
+	<button onclick="closevideo()" style="width:100px">关闭码流</button>
+	<button onclick="snapshot()" style="width:100px">截图</button>
+
+	<button onclick="openaudio()" style="width:100px">打开音频</button>
+	<button onclick="closeaudio()" style="width:100px">关闭音频</button>
+	<button onclick="deviceAlarm()" style="width:100px">报警</button>
+	<button onclick="deviceAlarm_stop()" style="width:100px">关闭报警</button>
+	<!-- <button onclick="showPlayInfo()" style="width:100px">show playinfo</button> -->
+	<br />
+	<span>云台控制</span>
+	<br />
+	<button onmouseup="ptz_ctrl_stop()" onmousedown="ptz_ctrl_up()" style="width:100px">云台上</button>
+	<button onmouseup="ptz_ctrl_stop()" onmousedown="ptz_ctrl_down()" style="width:100px">云台下</button>
+	<button onmouseup="ptz_ctrl_stop()" onmousedown="ptz_ctrl_left()" style="width:100px">云台左</button>
+	<button onmouseup="ptz_ctrl_stop()" onmousedown="ptz_ctrl_right()" style="width:100px">云台右</button>
+	预置位：<input type="text" id="presetName" value="1" style="width:100px">
+	<button onmousedown="ptz_ctrl_set_preset()" style="width:100px">设置预置点</button>
+	<button onmousedown="ptz_ctrl_load_preset()" style="width:100px">调用预置点</button>
+	<button onmousedown="ptz_ctrl_clear_preset()" style="width:100px">清空预置点</button>
+	<br />
+	<span>语音对讲</span>
+	<br />
+	<button onclick="opencall()" style="width:100px">发起对讲</button>
+	<button onclick="speakingcall()" style="width:100px">开始讲话</button>
+	<button onclick="stopspeaking()" style="width:100px">停止讲话</button>
+	<button onclick="closecall()" style="width:100px">关闭对讲</button>
+	<br />
+	<span>回放</span>
+	<span>当前回放录像时间</span>
+	<span id="startTime"></span>
+	<span>-</span>
+	<span id="endTime"></span>
+	<br />
+	<button onclick="searchrecord()" style="width:100px">搜索录像</button>
+	<button onclick="playback()" style="width:120px">回放第一个录像</button>
+	<button onclick="playbacknext()" style="width:120px">回放下一个录像</button>
+	<button onclick="playbackprev()" style="width:120px">回放上一个录像</button>
+	<button onclick="playbackpause()" style="width:100px">暂停回放</button>
+	<button onclick="playbackcontinue()" style="width:100px">继续回放</button>
+	<button onclick="stopplayback()" style="width:100px">停止回放</button>
+	<br />
+	<br />
+	<button onclick="remoteSetup()" style="width:130px">获取远程设置参数</button>
+	<button onclick="getDeviceVolume()" style="width:100px">获取音量</button>
+	输入音量：<span id="device_VolumeInput" style="width:100px;text-align: center;">0</span>
+	输出音量：<span id="device_VolumeOutput" style="width:100px;text-align: center;">0</span>
+	<button onclick="setDeviceVolume()" style="width:100px">设置音量</button>
+	<input type="text" id="device_SetVolume" style="width:80px" value="80">
+	<br><br>
+	<input type="checkbox" id="flipEnabled">图像上下翻转 <input type="checkbox" id="mirrorEnabled">图像左右翻转
+	<button onclick="getVideoManager()" style="width:100px">获取</button>
+	<button onclick="setVideoManager()" style="width:100px">设置</button>
+	<br><br>
+	<input type="checkbox" id="ir"> 红外夜视模式
+	<button onclick="getIR()" style="width:100px">获取</button>
+	<button onclick="setIR()" style="width:100px">设置</button>
+	<br><br>
+	<input type="checkbox" id="warningTone"> 扩音器报警开关
+	<button onclick="getWarningTone()" style="width:100px">获取</button>
+	<button onclick="setWarningTone()" style="width:100px">设置</button>
+
+	<!-- <button onclick="playback()" style="width:100px">play back</button> -->
+	<!-- <button onclick="stopplayback()" style="width:100px">stop playback</button> -->
+	<!-- <button onclick="playback_pause()" style="width:100px">pause/continue</button> -->
+	<!-- <button onclick="playback_fast()" style="width:100px">fast</button> -->
+	<!-- <button onclick="playback_slow()" style="width:100px">slow</button> -->
+	<!-- <button onclick="playback_reset()" style="width:100px">reset</button> -->
+
+
+	<table style="border:0px; width:720px">
+		<tr>
+			<td>
+				<canvas id="canvas1" width="702" height="576"></canvas>
+			</td>
+			<!-- <td>
+                    <canvas id="canvas2"></canvas>
+            </td> -->
+		</tr>
+		<!-- <tr>
+                <td>
+                        <canvas id="canvas3"></canvas>
+                </td>
+                <td>
+                        <canvas id="canvas4"></canvas>
+                </td>
+            </tr>         -->
+	</table>
+
+
+</body>
+<script src="./play.js"></script>
+<script>
+	ConnectApi.onremoteSetup = function (remote_str) {
+		console.log(remote_str)
+		var config = JSON.parse(remote_str);
+
+		if (config.option) {
+			if (config.option == "success") {
+				alert("设置成功");
+			} else {
+				alert("设置失败")
+			}
+		}
+
+		console.log(config, "---------");
+		if (config.IPCam) {
+			if (config.IPCam.ModeSetting) {
+				if (config.IPCam.ModeSetting.AudioVolume) {
+					var obj_out = document.getElementById("device_VolumeInput");
+					obj_out.innerText = config.IPCam.ModeSetting.AudioVolume.AudioInputVolume;
+
+					var obj_out = document.getElementById("device_VolumeOutput");
+					obj_out.innerText = config.IPCam.ModeSetting.AudioVolume.AudioOutputVolume;
+				}
+
+				if (config.IPCam.ModeSetting.IRCutFilterMode) {
+					document.getElementById("ir").checked = (config.IPCam.ModeSetting.IRCutFilterMode == "ir");
+				}
+			}
+
+			if (config.IPCam.videoManager) {
+				document.getElementById("flipEnabled").checked = config.IPCam.videoManager.flipEnabled;
+				document.getElementById("mirrorEnabled").checked = config.IPCam.videoManager.mirrorEnabled;
+			}
+
+			if (config.IPCam.AlarmSetting) {
+				if (config.IPCam.AlarmSetting.MotionDetection) {
+					document.getElementById("warningTone").checked = config.IPCam.AlarmSetting.MotionDetection
+						.MotionWarningTone;
+				}
+			}
+		}
+	}
+	var playbackNum = 0;
+	var recorder = null
+	var splitdata = new window.JASplitData()
+
+	function test_clock_ms() {
+		return (new Date()).valueOf();
+	}
+
+	function sendRemoteConfig(config) {
+		var id = document.getElementById("dev_id").value;
+		let session = null;
+		session = GetSessionById(id);
+		console.log(session);
+		var str = JSON.stringify(config);
+		console.log(str);
+		if (session) {
+			//if (str.length > 2000) {
+			ConnectApi.remote_setup2(session, str)
+			// } else {
+			// 	ConnectApi.remote_setup(session, str);
+			// }
+
+		}
+	}
+
+	function getWarningTone() {
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "get",
+			"IPCam": {
+				"AlarmSetting": {
+					"MotionDetection": {
+
+					}
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+		};
+
+		sendRemoteConfig(config);
+
+	}
+
+	function setWarningTone() {
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "set",
+			"IPCam": {
+				"AlarmSetting": {
+					"MotionDetection": {
+						"MotionWarningTone": document.getElementById("warningTone").checked
+					}
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+		};
+
+		sendRemoteConfig(config);
+
+	}
+
+	function getIR() {
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;
+		let recordDate = new Date();
+		recordDate.setFullYear(recordDate.getFullYear() - 1);
+		let config = {
+			"Version": "1.0.0",
+			"Method": "get",
+			"CapabilitySet": {},
+			"IPCam": {
+				"DeviceInfo": {},
+				"recordInfo": {
+					"recordScheduleDateInfo": [{
+						"chnNum": 0,
+						"beginTimeS": parseInt(recordDate.getTime() / 1000),
+						"endTimeS": parseInt(new Date().getTime() / 1000),
+						"recordDay": []
+					}]
+				},
+				"ModeSetting": {
+					"AudioVolume": {}
+				},
+				"AlarmSetting": {
+					"HumanoidDetection": {},
+					"MotionDetection": {},
+					"MessagePushSchedule": [],
+					"FaceDetection": {},
+					"MessagePushBitSchedule": [],
+
+				},
+				"SystemOperation": {
+					"TimeSync": {},
+					"DaylightSavingTime": {
+						"week": [{}, {}]
+					},
+					"Upgrade": {}
+				},
+				"PromptSounds": {},
+				"TfcardManager": {
+					"TFcard_recordSchedule": [],
+					// "TimeRecordEnabled": true
+				},
+				"WirelessManager": {},
+				"ChannelStatus": [],
+				"ChannelInfo": [],
+				"videoManager": {},
+				"devCoverSetting": [],
+				"RecordManager": {},
+				"powerLineFrequencyMode": "",
+				//注意：暂时加任何参数，也要加在获取附近 wifi方法里面加，否则就会报错
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user || '',
+				"password": pwd || '',
+			},
+			"UserManager": {}
+		};
+
+		sendRemoteConfig(config);
+
+	}
+
+	function setIR() {
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "set",
+			"IPCam": {
+				"ModeSetting": {
+					"IRCutFilterMode": "ir"
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+		};
+
+		if (document.getElementById("ir").checked) {
+			config.IPCam.ModeSetting.IRCutFilterMode = "ir";
+		} else {
+			config.IPCam.ModeSetting.IRCutFilterMode = "light";
+		}
+
+		sendRemoteConfig(config);
+
+	}
+
+	function getVideoManager() {
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "get",
+			"IPCam": {
+				"videoManager": {}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+		};
+
+		sendRemoteConfig(config);
+
+	}
+
+	function setVideoManager() {
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "set",
+			"IPCam": {
+				"videoManager": {
+					"flipEnabled": document.getElementById("flipEnabled").checked,
+					"mirrorEnabled": document.getElementById("mirrorEnabled").checked
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+		};
+
+		sendRemoteConfig(config);
+	}
+
+	function getDeviceVolume() {
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "get",
+			"IPCam": {
+				"ModeSetting": {
+					"AudioVolume": {
+
+					}
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+		};
+
+		sendRemoteConfig(config);
+	}
+
+	function setDeviceVolume() {
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;
+
+		var volume = parseInt(document.getElementById("device_SetVolume").value);
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "set",
+			"IPCam": {
+				"ModeSetting": {
+					"AudioVolume": {
+						"AudioInputVolume": volume,
+						"AudioOutputVolume": volume
+					}
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+		};
+
+		sendRemoteConfig(config);
+	}
+
+	function remoteSetup() {
+		//console.log('开始远处设置', id, ip, str)
+
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "get",
+			"IPCam": {
+				"ModeSetting": {},
+				"videoManager": {
+
+				},
+				"AlarmSetting": {
+					"MotionDetection": {
+
+					}
+				},
+				"ChannelStatus": {
+
+				},
+				"TfcardManager": {
+
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+		};
+
+		sendRemoteConfig(config);
+	}
+
+	//初始化canvas播放器
+	function init() {
+		let canvas = document.getElementById("canvas1")
+		Player.init([canvas]);
+		window.onorientationchange = function () {
+			alert(1)
+		};
+	}
+
+	function connect() {
+		var devid = document.getElementById("dev_id").value;
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;
+		var streamid = parseInt(document.getElementById("streamtype").value);
+		var channel = parseInt(document.getElementById("channel").value);
+		Player.ConnectDevice(devid, '', user, pwd, 0, 80, 0, channel, streamid)
+	}
+
+	function disconnect(params) {
+		var devid = document.getElementById("dev_id").value;
+		Player.DisConnectDevice(devid)
+	}
+
+	function openvideo() {
+		var streamid = parseInt(document.getElementById("streamtype").value);
+		var channel = parseInt(document.getElementById("channel").value);
+		document.getElementById("channel").disabled = true;
+		var devid = document.getElementById("dev_id").value;
+		Player.OpenStream(devid, '', channel, streamid, 0);
+	}
+
+	function closevideo() {
+
+		Player.CloseStream(0)
+	}
+
+	function changestream() {
+		//closevideo();
+		var obj = document.getElementById("streamtype");
+		if (obj.value == 0) {
+			obj.value = 1;
+		} else {
+			obj.value = 0;
+		}
+		//openvideo();
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ChangeStream(devid, '', channel, obj.value)
+	}
+
+	function ptz_ctrl_set_preset() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ptz_ctrl(devid, '', channel, 13, document.getElementById("presetName").value);
+	}
+
+	function ptz_ctrl_load_preset() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ptz_ctrl(devid, '', channel, 14, document.getElementById("presetName").value);
+	}
+
+	function ptz_ctrl_clear_preset() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ptz_ctrl(devid, '', channel, 15, 0);
+	}
+
+	function ptz_ctrl_up() {
+		console.log(1111);
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ptz_ctrl(devid, '', channel, 2, 6)
+	}
+
+	function ptz_ctrl_down() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ptz_ctrl(devid, '', channel, 3, 6)
+	}
+
+	function ptz_ctrl_left() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ptz_ctrl(devid, '', channel, 4, 6)
+	}
+
+	function ptz_ctrl_right() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ptz_ctrl(devid, '', channel, 5, 6)
+	}
+
+	function ptz_ctrl_stop() {
+		console.log(2222);
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ptz_ctrl(devid, '', channel, 0, 0)
+	}
+
+	function searchrecord() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		var date = new Date()
+		var YY = date.getFullYear().toString();
+		var MM = (date.getMonth() + 1 < 10 ? '0' + (date.getMonth() + 1) : date.getMonth() + 1).toString();
+		var DD = (date.getDate() < 10 ? '0' + (date.getDate()) : date.getDate()).toString();
+		var begintime = new Date(YY + '-' + MM + '-' + DD + ' 00:00:00');
+		var endtime = new Date(YY + '-' + MM + '-' + DD + ' 23:59:59');
+		begintime = parseInt(begintime.getTime() / 1000) - new Date().getTimezoneOffset() * 60
+		endtime = parseInt(endtime.getTime() / 1000) - new Date().getTimezoneOffset() * 60
+
+		Player.SreachRecord(devid, '', channel, begintime, endtime, 15)
+	}
+
+	function playback() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		var list = getRecordList();
+		playbackNum = 0;
+		var startTime = list[playbackNum].file_begintime
+		var endTime = list[playbackNum].file_endtime
+		// var startTime = list[playbackNum].file_begintime - new Date().getTimezoneOffset() *60
+		// var endTime = list[playbackNum].file_endtime - new Date().getTimezoneOffset() *60
+		document.getElementById("startTime").innerHTML = new Date((startTime + new Date().getTimezoneOffset() * 60) * 1000)
+			.toLocaleString();
+		document.getElementById("endTime").innerHTML = new Date((endTime + new Date().getTimezoneOffset() * 60) * 1000)
+			.toLocaleString();
+		Player.StartPlayBack(devid, '', channel, startTime, endTime, list[playbackNum].file_type, 0, true, 1)
+	}
+
+	function playbacknext(params) {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		var list = getRecordList();
+		playbackNum = playbackNum + 1;
+		var startTime = list[playbackNum].file_begintime
+		var endTime = list[playbackNum].file_endtime
+		document.getElementById("startTime").innerHTML = new Date((startTime + new Date().getTimezoneOffset() * 60) * 1000)
+			.toLocaleString();
+		document.getElementById("endTime").innerHTML = new Date((endTime + new Date().getTimezoneOffset() * 60) * 1000)
+			.toLocaleString();
+		Player.StartPlayBack(devid, '', channel, 1667812902, 1667813004, 2, 0, true, 1)
+		// let num = 0
+		// setInterval(() => {
+		// 	num++
+		// 	console.log("num", num);
+		// }, 1000)
+		camerecodefilename = '1667813004'
+	}
+
+	function playbackprev(params) {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		var list = getRecordList();
+		if (playbackNum > 0) {
+			playbackNum = playbackNum - 1;
+		}
+		var startTime = list[playbackNum].file_begintime
+		var endTime = list[playbackNum].file_endtime
+		document.getElementById("startTime").innerHTML = new Date((startTime + new Date().getTimezoneOffset() * 60) * 1000)
+			.toLocaleString();
+		document.getElementById("endTime").innerHTML = new Date((endTime + new Date().getTimezoneOffset() * 60) * 1000)
+			.toLocaleString();
+		Player.StartPlayBack(devid, '', channel, startTime, endTime, list[playbackNum].file_type, 0, true, 1)
+	}
+
+	function playbackpause() {
+		var devid = document.getElementById("dev_id").value;
+		Player.PausePlayBack(devid)
+	}
+
+	function playbackcontinue() {
+		var devid = document.getElementById("dev_id").value;
+		Player.ContinuePlayBack(devid)
+	}
+
+	function stopplayback() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.StopPlayBack(devid, '', channel)
+	}
+
+	function opencall() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.OpenCall(devid, '', channel)
+	}
+
+	function speakingcall() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		if (recorder !== null) recorder.close()
+		var recordAudioCallback = function (int16) {
+			var unit8data = new Uint8Array(int16.buffer);
+			splitdata.feed(unit8data)
+		}
+		window.JARecorder.get((rec) => {
+			recorder = rec
+			recorder.start()
+		}, {
+			inputCallback: recordAudioCallback
+		})
+		splitdata.outputData = function (unit8data) {
+			Player.CallSend(devid, '', channel, parseInt(new Date().getTime() / 1000), 'G711A', 8000, 16, 1, 1,
+				unit8data, unit8data.length)
+		}
+
+	}
+
+	function stopspeaking() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		recorder && recorder.stop()
+		splitdata.close()
+	}
+
+	function closecall() {
+		recorder && recorder.close()
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.CallHangup(devid, '', channel)
+	}
+
+	function snapshot() {
+		Player.Snapshot(0, 1, '截图.png', null, null, null)
+	}
+
+	function openaudio() {
+		Player.OpenAudio(0);
+	}
+
+	function closeaudio() {
+		Player.CloseAudio(0);
+	}
+
+	function readLocalFile(fileUrl) {
+		console.log("file", fileUrl);
+		let xhr = null;
+		if (window.XMLHttpRequest) {
+			xhr = new XMLHttpRequest();
+		} else {
+			// eslint-disable-next-line
+			xhr = new ActiveXObject("Microsoft.XMLHTTP");
+		}
+		xhr.onreadystatechange = function(){
+			console.log("status:",xhr.status, "readyState:",xhr.readyState);
+		}
+		const okStatus = document.location.protocol === "file" ? 0 : 200;
+		xhr.open("GET", fileUrl, false);
+		xhr.overrideMimeType("text/plain; charset=x-user-defined");
+		xhr.send(null);
+		return xhr.status === okStatus ? xhr.responseText : null;
+	}
+	
+	var alarm_time = null;
+	var alarm_data = null;
+	function deviceAlarm_stop(){
+		if(alarm_time == null)return;
+		clearInterval(alarm_time);
+		closecall();
+	}
+
+	function deviceAlarm() {
+		opencall()
+		var devid = document.getElementById("dev_id").value;
+		let data = readLocalFile("alarm.g711a");
+		if(alarm_data == null){
+			alarm_data = new Uint8Array(data.length);
+			for(var i = 0, len = data.length; i< len; ++i){
+				alarm_data[i] = data.charCodeAt(i) & 0xFF;
+			}		
+			console.log(alarm_data);
+		}
+
+		var filesize = alarm_data.length;
+		var start = 0;
+		var end;
+		let bytesPerPieces = 160 * 2;
+		alarm_time = setInterval(() => {
+			if (start >= filesize) {
+				clearInterval(alarm_time);
+			}
+			end = start + bytesPerPieces;
+			if (end > filesize) {
+				end = filesize;
+			} // 匹配最后一个分片的情况
+			var chunk = alarm_data.slice(start, end); //切割文件
+			console.log(chunk, "chunk");
+			Player.CallSend(
+				devid,
+				"",
+				1,
+				parseInt(new Date().getTime() / 1000),
+				"G711A",
+				8000,
+				16,
+				1,
+				1,
+				chunk,
+				chunk.length
+			);
+			start = end;
+		}, 40);
+	}
+</script>
+
+</html>

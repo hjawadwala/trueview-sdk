@@ -1,0 +1,1392 @@
+<!-- Licensed under a BSD license. See license.html for license -->
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+	<!-- <title>test</title> -->
+	<!-- <link type="text/css" href="resources/webgl-tutorials.css" rel="stylesheet" /> -->
+	<style>
+		html,
+		body {
+			width: 100%;
+			height: 100%;
+			/* overflow: auto; */
+			background: #fff;
+
+		}
+
+		/* body{
+			position:fixed;
+			top: 0;
+			left: 0;
+			display: flex;
+			flex-direction: column;
+			overflow-y:auto;
+
+		} */
+
+		canvas {
+			width: 704px;
+			height: 576px;
+			margin: 2px;
+			border: 1px solid black;
+		}
+	</style>
+	<script src="./decoder_def.js"></script>
+	<script src="./jadecoder.js"></script>
+	<script src="./hevcdec.js"></script>
+	<script src="./glutils.js"></script>
+	<script src="./connector.js"></script>
+	<script src="./audioplay.js"></script>
+	<script src="./md5.js"></script>
+	<script>
+	</script>
+</head>
+
+<body>
+	<span>设备ID：</span>
+	<!--input type="text" id="dev_id" value="2691361432"-->
+	<!--input type="text" id="dev_id" value="5587063385"-->
+	<input type="text" id="dev_id" value="5748716894">
+	<span>用户名：</span>
+	<input type="text" id="user" value="admin">
+	<span>密码：</span>
+	<!--input type="text" id="pwd" value="826888lh"-->
+	<!--input type="text" id="pwd" value="2461bba99b12e653c51dc15d88dc80c8"-->
+	<input type="text" id="pwd" value="">
+	<select id="streamtype" style="width:100px">
+		<option value=0>主码流</option>
+		<option value=1 selected>子码流</option>
+	</select>
+	<select id="channel" style="width:100px">
+		<option value=0>通道1</option>
+		<option value=1>通道2</option>
+		<option value=2>通道3</option>
+		<option value=3>通道4</option>
+	</select>
+	<button onclick="onReboot()">重启设备</button>
+	<button onclick="onTest()">压力测试</button>
+	<button onclick="onMD5()">MD5</button>
+	<button onclick="onCheckUID()">寻址分区测试</button>
+	<br />
+	<span>预览</span>
+	<br />
+	<button onclick="connect()" style="width:100px">连接设备</button>
+	<button onclick="disconnect()" style="width:100px">断开连接</button>
+	<button onclick="openvideo()" style="width:100px">打开码流</button>
+	<!--button onclick="playnext()" style="width:100px">next video</button-->
+	<button onclick="changestream()" style="width:110px">切换码流</button>
+	<button onclick="closevideo()" style="width:100px">关闭码流</button>
+	<button onclick="snapshot()" style="width:100px">截图</button>	
+
+	<button onclick="openaudio()" style="width:100px">打开音频</button>
+	<button onclick="closeaudio()" style="width:100px">关闭音频</button>	
+
+	<button onclick="deviceAlarm()" style="width:100px">报警</button>
+	<button onclick="deviceAlarm_stop()" style="width:100px">关闭报警</button>
+
+	<button onclick="setMainStreamH264()">设置主码流为H264</button>
+	<button onclick="setSubStreamH264()">设置子码流为H264</button>
+	<button onclick="getStreamType()">获取编码格式</button><span id="streamType"></span>
+	<!-- <button onclick="showPlayInfo()" style="width:100px">show playinfo</button> -->
+	<br />
+	<input type="checkbox" id="flipEnabled">图像上下翻转  <input type="checkbox" id="mirrorEnabled">图像左右翻转
+	<button onclick="getVideoManager()" style="width:100px">获取</button>
+	<button onclick="setVideoManager()" style="width:100px">设置</button>
+	<br>	
+	<span>云台控制</span>
+	<br />
+	<button onmouseup="ptz_ctrl_stop()" onmousedown="ptz_ctrl_up()" style="width:100px">云台上</button>
+	<button onmouseup="ptz_ctrl_stop()" onmousedown="ptz_ctrl_down()" style="width:100px">云台下</button>
+	<button onmouseup="ptz_ctrl_stop()" onmousedown="ptz_ctrl_left()" style="width:100px">云台左</button>
+	<button onmouseup="ptz_ctrl_stop()" onmousedown="ptz_ctrl_right()" style="width:100px">云台右</button>
+	<button onmouseup="ptz_ctrl_stop()" onmousedown="ptz_ctrl_zoom_in()" style="width:100px">云台近</button>
+	<button onmouseup="ptz_ctrl_stop()" onmousedown="ptz_ctrl_zoom_out()" style="width:100px">云台远</button>
+	预置位：<input type="text" id="presetName" value="1" style="width:100px">
+	<button onmousedown="ptz_ctrl_set_preset()" style="width:100px">设置预置点</button>
+	<button onmousedown="ptz_ctrl_load_preset()" style="width:100px">调用预置点</button>
+	<button onmousedown="ptz_ctrl_clear_preset()" style="width:100px">清空预置点</button>
+	<br />
+	<span>语音对讲</span>
+	<br />
+	<button onclick="opencall()" style="width:100px">发起对讲</button>
+	<button onclick="speakingcall()" style="width:100px">开始讲话</button>
+	<button onclick="stopspeaking()" style="width:100px">停止讲话</button>
+	<button onclick="closecall()" style="width:100px">关闭对讲</button>
+	<br />
+	<span>回放</span>
+	<span>当前回放录像时间</span>
+	<span id="startTime"></span>
+	<span>-</span>
+	<span id="endTime"></span>
+	<br />
+	<button onclick="searchrecord()" style="width:100px">搜索录像</button>
+	<button onclick="playback(0)" style="width:120px">回放第一个录像</button>
+	<button onclick="playbacknext()" style="width:120px">回放下一个录像</button>
+	<button onclick="playbackprev()" style="width:120px">回放上一个录像</button>
+	<button onclick="playbackpause()" style="width:100px">暂停回放</button>
+	<button onclick="playbackcontinue()" style="width:100px">继续回放</button>
+	<button onclick="playback(1)" style="width:120px">下载录像</button>
+	<button onclick="stopplayback()" style="width:100px">停止回放</button>
+	<div style="top:100px;float:left;position:absolute;width:500px;height:500px;background-color:#EEE;margin:10px;padding:10px;display:none;border:1px solid blue" id="div_recList">
+	<div>
+	<span>录像列表</span>&nbsp;&nbsp;<a href="#" onclick="document.getElementById('div_recList').style.display='none';">关闭</a>
+	</div>
+	<div style="height:470px;overflow: auto;">
+	<table id="recListTable" style="border:solid 1px black">
+		<tr>
+			<td style="border:solid 1px black">开始时间</td>
+			<td style="border:solid 1px black">结束时间</td>
+			<td style="border:solid 1px black">时长(秒)</td>
+			<td style="border:solid 1px black">录像类型</td>
+		</tr>
+	</table>	
+	</div>	
+	</div>
+	<br />
+	<input type="text" value="2022-11-24 15:42:00" id="playback_time">
+	<button onclick="playback_byTime()">指定时间回放</button>&nbsp;&nbsp;&nbsp;&nbsp;
+	<!--
+	<button onclick="playback_playFast()">快放</button>&nbsp;&nbsp;&nbsp;&nbsp;
+	<button onclick="playback_playSlow()">慢放</button>&nbsp;&nbsp;&nbsp;&nbsp;
+	<button onclick="playback_playNormal()">正常播放</button>&nbsp;&nbsp;&nbsp;&nbsp;
+	-->
+	<button onclick="document.getElementById('div_recList').style.display=''">显示录像列表</button>
+	<br>
+	<span>报警录像时长：</span>
+	<input type="text" value="10" id="alarm_rec_time">
+	<button onclick="getAlarmRecTime()">获取</button>
+	<button onclick="setAlarmRecTime()">设置</button>
+	<br>
+	<button onclick="remoteSetup()" style="width:130px">获取远程设置参数</button>
+	<button onclick="getDeviceVolume()" style="width:100px">获取音量</button>
+	输入音量：<span id="device_VolumeInput" style="width:100px;text-align: center;">0</span>
+	输出音量：<span id="device_VolumeOutput" style="width:100px;text-align: center;">0</span>
+	<button onclick="setDeviceVolume()" style="width:100px">设置音量</button>
+	<input type="text" id="device_SetVolume" style="width:80px" value="80">
+	<br>
+	<span>卡类型：</span><span id="OperatorsName"></span>&nbsp;&nbsp;&nbsp;&nbsp;
+	<span>信号：</span><span id="Signal"></span>
+	<br>
+	<input type="checkbox" id="ir"> 红外夜视模式
+	<button onclick="getIR()" style="width:100px">获取</button>
+	<button onclick="setIR()" style="width:100px">设置</button>
+	<br>
+	<input type="checkbox" id="warningTone"> 扩音器报警开关
+	<button onclick="getWarningTone()" style="width:100px">获取</button>
+	<button onclick="setWarningTone()" style="width:100px">设置</button>	
+	<br>
+	<div>
+		<span>TF卡状态：</span><span id="tf_status" style="width:80px;display:inline-block"></span>&nbsp;&nbsp;<span>TF卡容量：</span><span id="tf_totalSize" style="width:100px;display:inline-block"></span>&nbsp;&nbsp;<span>剩余：</span><span id="tf_leaveSize" style="width:100px;display:inline-block"></span>
+		&nbsp;&nbsp;&nbsp;&nbsp;
+		<button onclick="getTFCardStatus()">获取TF卡状态</button>
+		&nbsp;&nbsp;
+		<button onclick="formatTFCard()">格式化TF卡</button>
+	</div>
+	<div>
+		<button id="get_rec_mode" onclick="getRecordMode()">获取当前录像模式</button>
+		&nbsp;&nbsp;&nbsp;
+		<button id="set_rec_mode" onclick="setRecordMode()">设置录像模式</button>
+		<select id="rec_mode_list">
+			<option value="ultraLowPowerMode">固定时长</option>
+			<option value="lowPowerMode">持续录像</option>
+			<option value="autoLongAliveMode">一直录像</option>
+		</select>
+	</div>
+	<div>
+		<input type="checkbox" id="motionTrackEnabled">移动跟踪开关 &nbsp;&nbsp;<button onclick="getMotionTrackEnabled()">获取</button>&nbsp;&nbsp;<button onclick="setMotionTrackEnabled()">设置</button>
+	</div>
+	<div>
+		<input type="checkbox" id="AudioEnabled">录制声音开关 &nbsp;&nbsp;<button onclick="getAudioEnabled()">获取</button>&nbsp;&nbsp;<button onclick="setAudioEnabled()">设置</button>
+	</div>	
+	<div>
+		<label>设备使用场景</label><button onclick="getUsageScenario()">获取</button><button onclick="setUsageScenario()">设置</button>
+		<select id="usageScenario">			
+			<option value=""></option>
+			<option value="indoor">室内</option>
+			<option value="outdoor">室外</option>
+		</select>
+	</div>
+	
+	<!-- <button onclick="playback()" style="width:100px">play back</button> -->
+	<!-- <button onclick="stopplayback()" style="width:100px">stop playback</button> -->
+	<!-- <button onclick="playback_pause()" style="width:100px">pause/continue</button> -->
+	<!-- <button onclick="playback_fast()" style="width:100px">fast</button> -->
+	<!-- <button onclick="playback_slow()" style="width:100px">slow</button> -->
+	<!-- <button onclick="playback_reset()" style="width:100px">reset</button> -->
+	
+
+	<table style="border:0px; width:720px">
+		<tr>
+			<td>
+				<canvas id="canvas1" width="702" height="576"></canvas>
+			</td>
+			<!-- <td>
+                    <canvas id="canvas2"></canvas>
+            </td> -->
+		</tr>
+		<!-- <tr>
+                <td>
+                        <canvas id="canvas3"></canvas>
+                </td>
+                <td>
+                        <canvas id="canvas4"></canvas>
+                </td>
+            </tr>         -->
+	</table>
+
+
+</body>
+<script src="./play.js"></script>
+<script>
+
+	var resolv_checkUID = function(sn){
+		if(sn.length <= 10){
+			console.log(sn);
+			return sn;
+		}
+
+		var startIndex = sn.length - 10;
+		for(var i = startIndex; i<= sn.length; i++){
+			if(sn.charAt(i) != "0"){
+				startIndex = i;
+				break;
+			}
+		}
+		console.log(sn.slice(startIndex));
+		return sn.slice(startIndex);
+	}
+
+	var resolv_batchNum = function(yearStr, monStr){
+    var mYear = this.resolv_decodeDiffYear(yearStr);
+    var mYear_Mon = this.resolv_decodeMonth(mYear, monStr);
+    return resolv_Date(mYear_Mon.year, mYear_Mon.mon);
+}
+
+var resolv_decodeDiffYear = function(year_str){
+    var year_code = year_str.charCodeAt(0);
+    if(year_code < 58) return year_code - 48;
+    if(year_code < 91) return year_code - 55;
+    return year_code - 61;
+}
+
+var resolv_decodeMonth = function(yearCode, month_str){
+    var month_code = month_str.charCodeAt(0);
+    var ret = 0;
+    if(month_code == 48){
+        return resolv_decodeMonth('z') + 1;
+    }
+    else if((month_code > 48) && (month_code < 58)){
+        ret = month_code - 48;
+    }
+    else if(month_code < 91){
+        ret = month_code - 55;
+    }
+    else {
+        ret = month_code - 61;
+    }
+
+    var retMod = ret % 12;
+    var times = Math.floor(ret / 12);
+    if(retMod == 0){
+        retMod = 12;
+        times = time - 1;
+    }
+
+    var diffYear = times * 62 + yearCode + 2010;
+    return {"year":diffYear,"mon":retMod};
+}
+
+var resolv_Date = function(mYear, mMon){
+    if(mYear < 2023) return 0;
+    if((mYear == 2023) && (mMon < 5)) return 0;
+    if(mYear < 2320) return (mYear - 2024) * 12 + 8 + mMon;
+    return (2320-2024) * 12 + 8 + (mYear - 2320) * 2 + mMon;
+}
+
+/**
+ * 根据SN确定寻址的域名
+ * @param {*} sn 
+ */
+var resolv_domain = function(sn, usehttps){
+    if(sn.length > 10){
+        var yearStr = sn.slice(sn.length - 12, 1);
+        var monStr = sn.slick(sn.length - 11, 1);
+        var ngwIndex = this.resolv_batchNum(yearStr, monStr);
+
+        var port = 80;
+        if(usehttps)port = 443;
+
+        var domain = "ngw-cli.dvr163.com";
+        if(ngwIndex > 0){
+            domain = "ngw-cli-" + ngwIndex + ".dvr163.com";
+        }
+
+        return {"domain":domain,"port":port}
+    }
+    else{
+        if(usehttps){
+            return {"domain":"ngw-cli.dvr163.com","port":443};
+        }
+        else{
+            return {"domain":"ngw-cli.dvr163.com","port":80};
+        }
+    }
+}	
+
+	function onCheckUID(){
+		var devId = document.getElementById("dev_id").value;
+
+		//console.log(resolv_checkUID(devId));
+		let domain = resolv_domain(devId, true);
+		console.log(domain);
+	}
+		
+	function onMD5(){
+		var devId = document.getElementById("dev_id").value;
+
+		var str = stringChangeMd5(devId);
+		console.log("md5", str)
+	}
+
+	var last_rec_time = 0;
+	ConnectApi.onRecordFetch = function(file_type, file_begintime, file_endtime){
+		// if(file_endtime - file_begintime <= 0){
+		// 	return;
+		// }
+		var tr = document.createElement("tr");
+		var td_begin = document.createElement("td");
+		var td_end = document.createElement("td");
+		var td_times = document.createElement("td");
+		var td_type = document.createElement("td");
+
+		td_begin.innerText = new Date((file_begintime+ new Date().getTimezoneOffset() *60) * 1000).toLocaleString();	
+		td_end.innerText = new Date((file_endtime+ new Date().getTimezoneOffset() *60) * 1000).toLocaleString();
+		td_times.innerText = file_endtime - file_begintime;
+		if(file_type == 1){
+			td_type.innerText = "日程录像"
+		}
+		else{
+			td_type.innerText = "报警录像";
+		}		
+
+		if(file_begintime == last_rec_time){
+			tr.style.background = "blue"
+		}
+		last_rec_time = file_begintime;
+
+		td_begin.style = "border:solid 1px black"
+		td_end.style = "border:solid 1px black"
+		td_times.style = "border:solid 1px black"
+		td_type.style = "border:solid 1px black"
+
+		tr.appendChild(td_begin);
+		tr.appendChild(td_end);
+		tr.appendChild(td_times);
+		tr.appendChild(td_type);
+
+		var recListTable = document.getElementById("recListTable");
+		recListTable.appendChild(tr);
+	}
+
+	// ConnectApi.onRecFrameTimestamp = function(timestamp){
+	// 	//console.log(timestamp);
+	// 	//console.log(new Date().getTimezoneOffset());
+	// 	document.getElementById("playback_time").value = new Date((timestamp + new Date().getTimezoneOffset() *60 * 1000)).toLocaleString();	
+	// }
+
+	ConnectApi.onRemoteSetup = function(remote_str){
+		console.log(remote_str)
+		var config = JSON.parse(remote_str);
+
+		if(config.option){
+			if(config.option == "success"){
+				alert("设置成功");
+			}
+			else{
+				alert("设置失败")
+			}
+		}
+
+		if(config.IPCam){
+			if(config.IPCam.videoManager){
+				if(config.IPCam.videoManager.streamId == 1){
+					var streamType = document.getElementById("streamType");
+					streamType.innerText = "主码流：" + config.IPCam.videoManager.encType
+				}
+				if(config.IPCam.videoManager.streamId == 2){
+					var streamType = document.getElementById("streamType");
+					streamType.innerText = "子码流：" + config.IPCam.videoManager.encType
+				}				
+			}
+			if(config.IPCam.ModeSetting){
+				if(config.IPCam.ModeSetting.AudioVolume){
+					var obj_out = document.getElementById("device_VolumeInput");
+					obj_out.innerText = config.IPCam.ModeSetting.AudioVolume.AudioInputVolume;
+
+					var obj_out = document.getElementById("device_VolumeOutput");
+					obj_out.innerText = config.IPCam.ModeSetting.AudioVolume.AudioOutputVolume;
+				}
+
+				document.getElementById("AudioEnabled").checked = config.IPCam.ModeSetting.AudioEnabled;
+
+				if(config.IPCam.ModeSetting.IRCutFilterMode){
+					document.getElementById("ir").checked = (config.IPCam.ModeSetting.IRCutFilterMode == "ir");
+				}
+				if(config.IPCam.ModeSetting.usageScenario){
+					document.getElementById("usageScenario").value = config.IPCam.ModeSetting.usageScenario;
+				}
+			}
+
+			if(config.IPCam.videoManager){
+				document.getElementById("flipEnabled").checked = config.IPCam.videoManager.flipEnabled;
+				document.getElementById("mirrorEnabled").checked = config.IPCam.videoManager.mirrorEnabled;
+			}
+
+			if(config.IPCam.WorkMode){
+				document.getElementById("rec_mode_list").value = config.IPCam.WorkMode.Mode;
+			}
+			
+			if(config.IPCam.AlarmSetting){
+				if(config.IPCam.AlarmSetting.MotionDetection){
+					document.getElementById("warningTone").checked = config.IPCam.AlarmSetting.MotionDetection.MotionWarningTone;
+					document.getElementById("motionTrackEnabled").checked = config.IPCam.AlarmSetting.MotionDetection.motionTrackEnabled;
+					if(config.IPCam.AlarmSetting.MotionDetection.MdRecDuration){
+						document.getElementById("alarm_rec_time").value = config.IPCam.AlarmSetting.MotionDetection.MdRecDuration;
+					}
+				}
+			}
+			if(config.IPCam.TfcardManager){
+				var tf_status = document.getElementById("tf_status");
+				var tf_totalSize = document.getElementById("tf_totalSize");
+				var tf_leaveSize = document.getElementById("tf_leaveSize");
+				tf_status.innerText = config.IPCam.TfcardManager.Status;
+				tf_totalSize.innerText = config.IPCam.TfcardManager.TotalSpacesize + "M";
+				tf_leaveSize.innerText = config.IPCam.TfcardManager.LeaveSpacesize + "M";
+			}
+			if(config.IPCam.Lte){
+				var OperatorsName = document.getElementById("OperatorsName");
+				var Signal = document.getElementById("Signal");
+				OperatorsName.innerText = config.IPCam.Lte.OperatorsName;
+				Signal.innerText = config.IPCam.Lte.Signal;
+			}
+		}
+	}
+	var playbackNum = 0;
+	var recorder = null
+	var splitdata = new window.JASplitData()
+	function test_clock_ms() {
+		return (new Date()).valueOf();
+	}
+
+	function onCloseVideo(){
+		closevideo();
+		disconnect();
+		window.setTimeout(onTest, 2000);
+	}
+
+	function onOpenVideo(){
+		openvideo();
+
+		window.setTimeout(onCloseVideo, 3000);
+	}
+
+	function onTest(){
+		connect();
+		window.setTimeout(onOpenVideo, 3000);
+	}
+
+	function getStreamType(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "get",
+			"IPCam": {
+				"videoManager":{
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);			
+	}
+
+	function setSubStreamH264(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+		var flip = document.getElementById("flipEnabled");
+		var mirror = document.getElementById("mirrorEnabled");
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "set",
+			"IPCam": {
+				"videoManager":{
+					"streamId":2,
+					"encType":"H.264",
+					"flipEnabled":flip.checked,
+					"mirrorEnabled":mirror.checked					
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);			
+	}
+
+	function setMainStreamH264(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;	
+		var flip = document.getElementById("flipEnabled");
+		var mirror = document.getElementById("mirrorEnabled");
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "set",
+			"IPCam": {
+				"videoManager":{
+					"streamId":1,
+					"encType":"H.264",
+					"flipEnabled":flip.checked,
+					"mirrorEnabled":mirror.checked
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);	
+	}
+
+	function getUsageScenario(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "get",
+			"IPCam": {
+				"ModeSetting":{
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);			
+	}
+
+	function setUsageScenario(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+		if(document.getElementById("usageScenario").value == ""){
+			return;
+		}
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "set",
+			"IPCam": {
+				"ModeSetting":{
+					"usageScenario":document.getElementById("usageScenario").value
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);				
+	}
+
+	function getMotionTrackEnabled(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "get",
+			"IPCam": {
+				"AlarmSetting":{
+					"MotionDetection":{
+
+					}
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);	
+	}
+
+	function setMotionTrackEnabled(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "set",
+			"IPCam": {
+				"AlarmSetting":{
+					"MotionDetection":{
+						"motionTrackEnabled":document.getElementById("motionTrackEnabled").checked
+					}
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);	
+	}
+
+	function getAudioEnabled(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "get",
+			"IPCam": {
+				"ModeSetting":{
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);		
+	}
+
+	function setAudioEnabled(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "set",
+			"IPCam": {
+				"ModeSetting":{
+					"AudioEnabled":document.getElementById("AudioEnabled").checked
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);		
+	}
+
+	function getRecordMode(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "get",
+			"IPCam": {
+				"WorkMode":{
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);				
+	}
+
+	function setRecordMode(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "set",
+			"IPCam": {
+				"WorkMode":{
+					"Mode":document.getElementById("rec_mode_list").value
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);				
+	}	
+	
+	function onReboot(){
+	  var user = document.getElementById("user").value;
+	  var pwd = document.getElementById("pwd").value;			
+      var config = {
+        "Version":"1.3.0",
+        "Method":"set",
+        "Authorization":{
+          "Verify":"",
+          "username":user,
+          "password":pwd
+        },
+        "IPCam":{
+          "SystemOperation":{
+            "Reboot":true
+          }
+        }
+      }	
+	  sendRemoteConfig(config);
+	}
+
+	function getAlarmRecTime(){
+		var alarm_rec_time = document.getElementById("alarm_rec_time");
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "get",
+			"IPCam": {
+				"AlarmSetting":{
+					"MotionDetection":{
+
+					}
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);		
+	}
+
+	function setAlarmRecTime(){
+		var alarm_rec_time = document.getElementById("alarm_rec_time");
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "set",
+			"IPCam": {
+				"AlarmSetting":{
+					"MotionDetection":{
+						"MdRecDuration":parseInt(alarm_rec_time.value)
+					}
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);				
+	}
+
+	function sendRemoteConfig(config){
+		var id = document.getElementById("dev_id").value;
+		let session = null;
+		session = GetSessionById(id);
+		var str = JSON.stringify(config);
+		if (session) {
+			ConnectApi.remote_setup2(session, str)
+		}	
+	}
+
+	function getWarningTone(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "get",
+			"IPCam": {
+				"AlarmSetting":{
+					"MotionDetection":{
+
+					}
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);
+		
+	}	
+
+	function setWarningTone(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "set",
+			"IPCam": {
+				"AlarmSetting":{
+					"MotionDetection":{
+						"MotionWarningTone":document.getElementById("warningTone").checked
+					}
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);
+		
+	}		
+
+	function getIR(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "get",
+			"IPCam": {
+				"ModeSetting":{
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);
+		
+	}	
+
+	function setIR(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "set",
+			"IPCam": {
+				"ModeSetting":{
+					"IRCutFilterMode":"ir"
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		 if(document.getElementById("ir").checked){
+			config.IPCam.ModeSetting.IRCutFilterMode = "ir";
+		 }
+		 else{
+			config.IPCam.ModeSetting.IRCutFilterMode = "light";
+		 }
+
+		sendRemoteConfig(config);
+		
+	}		
+
+	function getVideoManager(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "get",
+			"IPCam": {
+				"videoManager":{
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);
+		
+	}
+
+	function deviceAlarm(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "set",
+			"IPCam": {
+				"V2":{
+					"R/SoundManCtrl":{
+						"Operate":"ON",
+						"DurSec":10,
+					}
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);		
+	}
+
+	function setVideoManager(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "2.0.0",
+			"Method": "set",
+			"IPCam": {
+				"videoManager":{
+					"flipEnabled":document.getElementById("flipEnabled").checked,
+					"mirrorEnabled":document.getElementById("mirrorEnabled").checked
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);			
+	}
+
+	function getDeviceVolume(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "get",
+			"IPCam": {
+				"ModeSetting":{
+					"AudioVolume":{
+
+					}
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);
+	}
+
+	function setDeviceVolume(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		var volume = parseInt(document.getElementById("device_SetVolume").value);
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "set",
+			"IPCam": {
+				"ModeSetting":{
+					"AudioVolume":{
+						"AudioInputVolume":volume,
+						"AudioOutputVolume":volume
+					}
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);	
+	}
+
+	function remoteSetup(){
+		//console.log('开始远处设置', id, ip, str)
+
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "get",
+			"IPCam": {
+				"ModeSetting": {
+				},
+				"videoManager":{
+
+				},
+				"AlarmSetting":{
+					"MotionDetection":{
+
+					}
+				},
+				"ChannelStatus":{
+
+				},
+				"LTE":{
+
+				},
+				"TfcardManager":{
+
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+
+		sendRemoteConfig(config);
+	}
+
+	function getTFCardStatus(){
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "get",
+			"IPCam": {
+				"TfcardManager":{
+
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+		sendRemoteConfig(config);		
+	}
+
+	function formatTFCard(){
+		if(!window.confirm("格式化TF卡，请谨慎操作")){
+			return;
+		}
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;		
+
+		let config = {
+			"Version": "1.3.0",
+			"Method": "set",
+			"IPCam": {
+				"TfcardManager":{
+					"Operation":"format"
+				}
+			},
+			"Authorization": {
+				"Verify": '',
+				"username": user,
+				"password": pwd
+			}
+   		 };
+		sendRemoteConfig(config);				
+	}
+
+	//初始化canvas播放器
+	function init() {
+		let canvas = document.getElementById("canvas1")
+		Player.init([canvas]);
+		window.onorientationchange = function() {
+          alert(1)
+        };
+	}
+
+	function connect() {
+		init();
+		var devid = document.getElementById("dev_id").value;
+		var user = document.getElementById("user").value;
+		var pwd = document.getElementById("pwd").value;
+		var streamid = parseInt(document.getElementById("streamtype").value);
+		var channel = parseInt(document.getElementById("channel").value);
+		Player.ConnectDevice(devid, '', user, pwd, 0, 80, 0, channel, streamid)
+	}
+	function disconnect(params) {
+		var devid = document.getElementById("dev_id").value;
+		Player.DisConnectDevice(devid)
+	}
+	function openvideo() {
+		var streamid = parseInt(document.getElementById("streamtype").value);
+		var channel = parseInt(document.getElementById("channel").value);
+		document.getElementById("channel").disabled = true;
+		var devid = document.getElementById("dev_id").value;
+		Player.OpenStream(devid, '', channel, streamid, 0);
+	}
+
+	function closevideo() {
+		
+		Player.CloseStream(0)
+	}
+
+	function changestream() {
+		//closevideo();
+		var obj = document.getElementById("streamtype");
+		if (obj.value == 0) {
+			obj.value = 1;
+		} else {
+			obj.value = 0;
+		}
+		//openvideo();
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ChangeStream(devid, '', channel, obj.value)
+	}
+	function ptz_ctrl_set_preset(){
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ptz_ctrl(devid, '', channel, 13, document.getElementById("presetName").value);
+	}
+	function ptz_ctrl_load_preset(){
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ptz_ctrl(devid, '', channel, 14, document.getElementById("presetName").value);
+	}
+
+	function ptz_ctrl_clear_preset(){
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ptz_ctrl(devid, '', channel, 15,0);
+	}
+
+	function ptz_ctrl_up() {
+		console.log(1111);
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ptz_ctrl(devid, '', channel, 2, 6)
+	}
+	function ptz_ctrl_down() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ptz_ctrl(devid, '', channel, 3, 6)
+	}
+	function ptz_ctrl_left() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ptz_ctrl(devid, '', channel, 4, 6)
+	}
+	function ptz_ctrl_right() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ptz_ctrl(devid, '', channel, 5, 6)
+	}
+	function ptz_ctrl_zoom_in() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ptz_ctrl(devid, '', channel, 8, 6)
+	}
+	function ptz_ctrl_zoom_out() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ptz_ctrl(devid, '', channel, 9, 6)
+	}		
+	function ptz_ctrl_stop() {
+		console.log(2222);
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.ptz_ctrl(devid, '', channel, 0, 0)
+	}
+	function searchrecord() {
+		var recListTable = document.getElementById("recListTable");
+		document.getElementById("div_recList").style.display = "";
+		var trList = recListTable.childNodes;
+		for(var i=trList.length - 1; i>1 ;i--){
+			recListTable.removeChild(trList[i]);
+		}
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		var date = new Date("2023-06-17")
+		var YY = date.getFullYear().toString();
+		var MM = (date.getMonth() + 1 < 10 ? '0' + (date.getMonth() + 1) : date.getMonth() + 1).toString();
+		var DD = (date.getDate() < 10 ? '0' + (date.getDate()) : date.getDate()).toString();
+		var begintime = new Date(YY + '-' + MM + '-' + DD + ' 00:00:00');
+		var endtime = new Date(YY + '-' + MM + '-' + DD + ' 23:59:59');
+		begintime = parseInt(begintime.getTime()/1000) - new Date().getTimezoneOffset() *60
+		endtime = parseInt(endtime.getTime()/1000) - new Date().getTimezoneOffset() *60
+		
+		console.log("SreachRecord ", begintime, endtime)
+		Player.SreachRecord(devid, '', channel, begintime, endtime, 15)
+	}
+	function playback_playFast(){
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;		
+		Player.PlayFast(devid, '', channel);
+	}
+	function playback_playSlow(){
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;		
+		Player.PlaySlow(devid, '', channel);
+	}
+	function playback_playNormal(){
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;		
+		Player.PlayNormal(devid, '', channel);
+	}
+	function playback_byTime(){
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;		
+		var playback_time = document.getElementById("playback_time").value;
+		var startTime = (Date.parse(playback_time)) / 1000 - new Date().getTimezoneOffset() *60; 
+		var endTime = startTime + 86400;
+		console.log(playback_time + ", " + startTime + "," + endTime);
+		Player.StartPlayBack(devid, '', channel, startTime, endTime,0xFF, 0, false, 1);
+		//默认为实时模式，根据流来的速度播放
+		//设备StreamMode为1时，播放器控制播放帧率，但目前浏览器端效果不好，不建议使用
+		//Player.SetStreamMode(devid, '', channel, 1);
+		//Player.PlayNormal();		
+	}
+	function playback(tasktype) {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		var list = getRecordList();
+		playbackNum = 0;
+		var startTime = list[playbackNum].file_begintime
+		var endTime = list[playbackNum].file_endtime
+		// var startTime = list[playbackNum].file_begintime - new Date().getTimezoneOffset() *60
+		// var endTime = list[playbackNum].file_endtime - new Date().getTimezoneOffset() *60
+		document.getElementById("startTime").innerHTML = new Date((startTime+ new Date().getTimezoneOffset() *60) * 1000).toLocaleString();
+		document.getElementById("endTime").innerHTML = new Date((endTime+ new Date().getTimezoneOffset() *60) * 1000).toLocaleString();
+		Player.StartPlayBack(devid, '', channel, startTime, endTime,list[playbackNum].file_type, 0, false, tasktype)
+	}
+	function playbacknext(params) {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		var list = getRecordList();
+		playbackNum = playbackNum + 1;
+		var startTime = list[playbackNum].file_begintime
+		var endTime = list[playbackNum].file_endtime
+		document.getElementById("startTime").innerHTML = new Date((startTime+ new Date().getTimezoneOffset() *60) * 1000).toLocaleString();
+		document.getElementById("endTime").innerHTML = new Date((endTime+ new Date().getTimezoneOffset() *60) * 1000).toLocaleString();
+		Player.StartPlayBack(devid, '', channel, startTime, endTime,list[playbackNum].file_type, 0, false, 0)
+	}
+	function playbackprev(params) {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		var list = getRecordList();
+		if(playbackNum > 0){
+			playbackNum = playbackNum - 1;
+		}
+		var startTime = list[playbackNum].file_begintime
+		var endTime = list[playbackNum].file_endtime
+		document.getElementById("startTime").innerHTML = new Date((startTime+ new Date().getTimezoneOffset() *60) * 1000).toLocaleString();
+		document.getElementById("endTime").innerHTML = new Date((endTime+ new Date().getTimezoneOffset() *60) * 1000).toLocaleString();
+		Player.StartPlayBack(devid, '', channel, startTime, endTime,list[playbackNum].file_type, 0, false, 0)
+	}
+	function playbackpause() {
+		var devid = document.getElementById("dev_id").value;
+		Player.PausePlayBack(devid)
+	}
+	function playbackcontinue() {
+		var devid = document.getElementById("dev_id").value;
+		Player.ContinuePlayBack(devid)
+	}
+	function stopplayback() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.StopPlayBack(devid, '', channel)
+	}
+	function opencall() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.OpenCall(devid, '', channel)
+	}
+	function speakingcall() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		if (recorder !== null) recorder.close()
+		var recordAudioCallback = function (int16) {
+			var unit8data = new Uint8Array(int16.buffer);
+			splitdata.feed(unit8data)
+		}
+		window.JARecorder.get((rec) => {
+			recorder = rec
+			recorder.start()
+		}, {inputCallback: recordAudioCallback})
+		splitdata.outputData = function(unit8data){
+			Player.CallSend(devid, '', channel, parseInt(new Date().getTime()/1000), 'G711A', 8000, 16, 1, 1, unit8data, unit8data.length)
+		}
+		
+	}
+	function stopspeaking() {
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		recorder && recorder.stop()
+		splitdata.close()
+	}
+	function closecall() {
+		recorder && recorder.close()
+		var devid = document.getElementById("dev_id").value;
+		var channel = document.getElementById("channel").value;
+		Player.CallHangup(devid, '', channel)
+	}
+	function snapshot() {
+		Player.Snapshot(0, 1, '截图.png', null, null, null)
+	}
+
+	function openaudio(){
+		Player.OpenAudio(0);
+	}
+
+	function closeaudio(){
+		Player.CloseAudio(0);
+	}
+</script>
+
+</html>
