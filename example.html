@@ -51,6 +51,12 @@
             border: 1px solid #bdc3c7;
             border-radius: 4px;
         }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            grid-gap: 10px 20px;
+            align-items: center;
+        }
         button {
             background: #3498db;
             color: white;
@@ -104,6 +110,42 @@
             color: #0c5460;
             border: 1px solid #bee5eb;
         }
+        /* Tables */
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+        }
+        .table th, .table td {
+            border: 1px solid #e1e4e8;
+            padding: 8px 10px;
+            text-align: left;
+            vertical-align: top;
+        }
+        .table thead th {
+            position: sticky;
+            top: 0;
+            background: #f3f6f9;
+            z-index: 1;
+        }
+        .table tbody tr:nth-child(odd) {
+            background: #fafafa;
+        }
+        .table tbody tr:hover {
+            background: #eef7ff;
+        }
+        .kv {
+            width: 100%;
+            table-layout: fixed;
+        }
+        .kv th { width: 30%; }
+        .pill {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            background: #ecf0f1;
+        }
     </style>
     <script src="./dist/decoder_def.js"></script>
     <script src="./dist/hevcdec.js"></script>
@@ -125,30 +167,35 @@
         <!-- Device Credentials Section -->
         <div class="credentials">
             <h3>Device Connection</h3>
-            <div>
-                <label>Device ID:</label>
-                <input type="text" id="dev_id" placeholder="Enter Device ID" style="width: 200px;">
-                
-                <label>Username:</label>
-                <input type="text" id="user" value="admin" style="width: 150px;">
-                
-                <label>Password:</label>
-                <input type="password" id="pwd" placeholder="Enter Password" style="width: 150px;">
-            </div>
-            <div style="margin-top: 10px;">
-                <label>Stream Type:</label>
-                <select id="streamtype" style="width:120px">
-                    <option value="0">Main Stream</option>
-                    <option value="1" selected>Sub Stream</option>
-                </select>
-                
-                <label>Channel:</label>
-                <select id="channel" style="width:100px">
-                    <option value="0">Channel 1</option>
-                    <option value="1">Channel 2</option>
-                    <option value="2">Channel 3</option>
-                    <option value="3">Channel 4</option>
-                </select>
+            <div class="grid-2">
+                <div>
+                    <label>Device ID:</label>
+                    <input type="text" id="dev_id" placeholder="Enter Device ID" style="width: 260px;">
+                </div>
+                <div>
+                    <label>Username:</label>
+                    <input type="text" id="user" value="admin" style="width: 200px;">
+                </div>
+                <div>
+                    <label>Password:</label>
+                    <input type="password" id="pwd" placeholder="Enter Password" style="width: 200px;">
+                </div>
+                <div>
+                    <label>Stream Type:</label>
+                    <select id="streamtype" style="width:160px">
+                        <option value="0">Main Stream</option>
+                        <option value="1" selected>Sub Stream</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Channel:</label>
+                    <select id="channel" style="width:160px">
+                        <option value="0">Channel 1</option>
+                        <option value="1">Channel 2</option>
+                        <option value="2">Channel 3</option>
+                        <option value="3">Channel 4</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -247,6 +294,56 @@
                 <input type="text" id="playback_endTime" placeholder="YYYY-MM-DD HH:MM:SS">
                 <button onclick="playback_byTime()">Play by Time Range</button>
             </div>
+        </div>
+
+        <!-- Device Details Table -->
+        <div class="section">
+            <h3>Device Details</h3>
+            <table id="deviceDetailsTable" class="table kv">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Connection</td><td><span class="pill" id="conn_status">Not connected</span></td></tr>
+                    <tr><td>Encoding</td><td id="dd_encoding">-</td></tr>
+                    <tr><td>Flip</td><td id="dd_flip">-</td></tr>
+                    <tr><td>Mirror</td><td id="dd_mirror">-</td></tr>
+                    <tr><td>Audio Enabled</td><td id="dd_audio_enabled">-</td></tr>
+                    <tr><td>Audio Volume (In/Out)</td><td id="dd_audio_volume">-</td></tr>
+                    <tr><td>IR Mode</td><td id="dd_ir_mode">-</td></tr>
+                    <tr><td>Warning Tone</td><td id="dd_warning_tone">-</td></tr>
+                    <tr><td>Motion Tracking</td><td id="dd_motion_track">-</td></tr>
+                    <tr><td>TF Card</td><td id="dd_tf_status">-</td></tr>
+                    <tr><td>SIM Operator</td><td id="dd_sim_operator">-</td></tr>
+                    <tr><td>SIM Signal</td><td id="dd_sim_signal">-</td></tr>
+                    <tr><td>SIM ICCID</td><td id="dd_sim_iccid">-</td></tr>
+                    <tr><td>SIM IMSI</td><td id="dd_sim_imsi">-</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Available Playbacks Table -->
+        <div class="section">
+            <h3>Available Playbacks</h3>
+            <div class="button-group">
+                <button onclick="searchrecord()">Refresh (Search Today)</button>
+            </div>
+            <table id="playbackTable" class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Start Time</th>
+                        <th>End Time</th>
+                        <th>Duration</th>
+                        <th>Type</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
 
         <!-- Recording List Dialog -->
@@ -482,12 +579,18 @@
             
             Player.ConnectDevice(devid, '', user, pwd, 0, 80, 0, channel, streamid);
             showStatus("Connecting to device...", "info");
+            document.getElementById('conn_status').innerText = 'Connecting';
+            document.getElementById('conn_status').style.background = '#fff3cd';
+            document.getElementById('conn_status').style.color = '#856404';
         }
 
         function disconnect() {
             var devid = document.getElementById("dev_id").value;
             Player.DisConnectDevice(devid);
             showStatus("Disconnected from device", "success");
+            document.getElementById('conn_status').innerText = 'Disconnected';
+            document.getElementById('conn_status').style.background = '#f8d7da';
+            document.getElementById('conn_status').style.color = '#721c24';
         }
 
         function onGetSN() {
@@ -698,15 +801,28 @@
 
         // Playback functions
         var playbackNum = 0;
+        var playbackEntries = [];
+        function formatTime(ts){
+            return new Date((ts + new Date().getTimezoneOffset() * 60) * 1000).toLocaleString();
+        }
+        function formatDuration(sec){
+            sec = Math.max(0, parseInt(sec||0,10));
+            var h = Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60;
+            return (h>0? (h+'h '):'') + (m>0? (m+'m '):'') + s + 's';
+        }
 
         function searchrecord() {
             var recListTable = document.getElementById("recListTable");
             var trList = recListTable.childNodes;
             for(var i = trList.length - 1; i > 0; i--){
-                if(trList[i].tagName === 'TR' && i > 0) {
+                if(trList[i].tagName === 'TR') {
                     recListTable.removeChild(trList[i]);
                 }
             }
+            // Clear page playback table
+            var pbody = document.querySelector('#playbackTable tbody');
+            while(pbody.firstChild){ pbody.removeChild(pbody.firstChild); }
+            playbackEntries = [];
             
             var devid = document.getElementById("dev_id").value;
             var channel = document.getElementById("channel").value;
@@ -796,6 +912,48 @@
         }
 
         // Settings functions
+        function updateDeviceDetailsFromConfig(config){
+            // Encoding / video
+            if(config.IPCam && config.IPCam.videoManager){
+                var vm = config.IPCam.videoManager;
+                if(vm.encType) document.getElementById('dd_encoding').innerText = (vm.streamId? ('S'+vm.streamId+': '):'') + vm.encType;
+                if(typeof vm.flipEnabled !== 'undefined') document.getElementById('dd_flip').innerText = vm.flipEnabled? 'Yes':'No';
+                if(typeof vm.mirrorEnabled !== 'undefined') document.getElementById('dd_mirror').innerText = vm.mirrorEnabled? 'Yes':'No';
+            }
+            // Mode settings
+            if(config.IPCam && config.IPCam.ModeSetting){
+                var ms = config.IPCam.ModeSetting;
+                if(typeof ms.AudioEnabled !== 'undefined') document.getElementById('dd_audio_enabled').innerText = ms.AudioEnabled? 'Enabled':'Disabled';
+                if(ms.AudioVolume){
+                    var ain = ms.AudioVolume.AudioInputVolume;
+                    var aout = ms.AudioVolume.AudioOutputVolume;
+                    document.getElementById('dd_audio_volume').innerText = (ain??'-') + ' / ' + (aout??'-');
+                }
+                if(ms.IRCutFilterMode){
+                    document.getElementById('dd_ir_mode').innerText = ms.IRCutFilterMode;
+                }
+            }
+            // Alarm settings
+            if(config.IPCam && config.IPCam.AlarmSetting && config.IPCam.AlarmSetting.MotionDetection){
+                var md = config.IPCam.AlarmSetting.MotionDetection;
+                if(typeof md.MotionWarningTone !== 'undefined') document.getElementById('dd_warning_tone').innerText = md.MotionWarningTone? 'On':'Off';
+                if(typeof md.motionTrackEnabled !== 'undefined') document.getElementById('dd_motion_track').innerText = md.motionTrackEnabled? 'On':'Off';
+            }
+            // TF card
+            if(config.IPCam && config.IPCam.TfcardManager){
+                var tf = config.IPCam.TfcardManager;
+                var txt = (tf.Status||'-') + ' | Total: ' + (tf.TotalSpacesize||0) + 'M, Free: ' + (tf.LeaveSpacesize||0) + 'M';
+                document.getElementById('dd_tf_status').innerText = txt;
+            }
+            // SIM / LTE
+            if(config.IPCam && (config.IPCam.Lte || config.IPCam.LTE)){
+                var lte = config.IPCam.Lte || config.IPCam.LTE;
+                if(lte.OperatorsName) document.getElementById('dd_sim_operator').innerText = lte.OperatorsName;
+                if(typeof lte.Signal !== 'undefined') document.getElementById('dd_sim_signal').innerText = lte.Signal;
+                if(lte.ICCID) document.getElementById('dd_sim_iccid').innerText = lte.ICCID;
+                if(lte.IMSI) document.getElementById('dd_sim_imsi').innerText = lte.IMSI;
+            }
+        }
         function sendRemoteConfig(config) {
             var id = document.getElementById("dev_id").value;
             let session = GetSessionById(id);
@@ -1330,6 +1488,9 @@
                     document.getElementById("SIM_IMSI").innerText = config.IPCam.Lte.IMSI || "-";
                 }
             }
+
+            // Update Device Details table
+            try { updateDeviceDetailsFromConfig(config); } catch(e) { console.warn('updateDeviceDetails error', e); }
         };
 
         // Record list callback
@@ -1368,7 +1529,49 @@
             tr.appendChild(td_actions);
 
             document.getElementById("recListTable").appendChild(tr);
+
+            // Also populate the page playback table and in-memory entries
+            var idx = playbackEntries.length;
+            playbackEntries.push({
+                file_type: file_type,
+                file_begintime: file_begintime,
+                file_endtime: file_endtime
+            });
+            var pbody = document.querySelector('#playbackTable tbody');
+            var pr = document.createElement('tr');
+            var td0 = document.createElement('td'); td0.innerText = (idx+1);
+            var td1 = document.createElement('td'); td1.innerText = formatTime(file_begintime);
+            var td2 = document.createElement('td'); td2.innerText = formatTime(file_endtime);
+            var td3 = document.createElement('td'); td3.innerText = formatDuration(file_endtime - file_begintime);
+            var td4 = document.createElement('td'); td4.innerText = (file_type == 1) ? 'Scheduled' : 'Alarm';
+            var td5 = document.createElement('td');
+            var btnPlay = document.createElement('button'); btnPlay.innerText = 'Play'; btnPlay.onclick = function(){ playbackAtIndex(idx); };
+            var btnDl = document.createElement('button'); btnDl.innerText = 'Download'; btnDl.onclick = function(){ downloadAtIndex(idx); };
+            td5.appendChild(btnPlay); td5.appendChild(btnDl);
+            [td0,td1,td2,td3,td4,td5].forEach(td=>{ td.style.padding='8px 10px'; td.style.border='1px solid #e1e4e8'; });
+            pr.appendChild(td0); pr.appendChild(td1); pr.appendChild(td2); pr.appendChild(td3); pr.appendChild(td4); pr.appendChild(td5);
+            pbody.appendChild(pr);
         };
+
+        function playbackAtIndex(i){
+            var entry = playbackEntries[i];
+            if(!entry){ showStatus('Invalid playback index', 'error'); return; }
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            document.getElementById("startTime").innerHTML = formatTime(entry.file_begintime);
+            document.getElementById("endTime").innerHTML = formatTime(entry.file_endtime);
+            Player.StartPlayBack(devid, '', channel, entry.file_begintime, entry.file_endtime, entry.file_type, 0, false, 0);
+            showStatus('Playing selected recording...', 'info');
+        }
+
+        function downloadAtIndex(i){
+            var entry = playbackEntries[i];
+            if(!entry){ showStatus('Invalid playback index', 'error'); return; }
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            Player.StartPlayBack(devid, '', channel, entry.file_begintime, entry.file_endtime, entry.file_type, 0, false, 1);
+            showStatus('Downloading selected recording...', 'info');
+        }
 
     </script>
 </body>
