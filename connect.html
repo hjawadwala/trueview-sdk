@@ -172,6 +172,16 @@
           <button id="btnSnapshot" type="button" class="secondary">Snapshot</button>
           <button id="btnMute" type="button" class="secondary">Toggle Audio</button>
         </div>
+        <!-- Playback controls (in-player) appear after selecting a record -->
+        <div id="pbControls" style="display:none; border:1px solid rgba(255,255,255,.1); border-radius:10px; padding:10px; margin-top:12px;">
+          <div class="toolbar" style="margin-bottom:8px; flex-wrap:wrap; align-items:center">
+            <button type="button" id="pbRew" class="secondary">⏪ 10s</button>
+            <button type="button" id="pbPlayPause" class="secondary">⏸ Pause</button>
+            <button type="button" id="pbFf" class="secondary">⏩ 10s</button>
+            <div id="pbTimeLabel" class="status" style="margin-left:8px">00:00:00 / 00:00:00</div>
+          </div>
+          <input id="pbSeek" type="range" min="0" max="100" value="0" step="1" style="width:100%" />
+        </div>
       </section>
 
       <!-- Tabs: Device settings and Playback history -->
@@ -257,6 +267,7 @@
           <div class="toolbar" style="margin-bottom:8px">
             <button type="button" id="btnSearchRecords">Search</button>
           </div>
+        
           <div style="overflow:auto; max-height: 320px; border:1px solid rgba(255,255,255,.08); border-radius:10px;">
             <table style="width:100%; border-collapse:collapse; font-size:13px;">
               <thead>
@@ -513,13 +524,129 @@
           const devid = $('#deviceId').value.trim();
           const channel = parseInt($('#pbChannel').value,10) || 0;
           // tasktype=0 play in window 0
-          Player.StartPlayBack(devid, '', channel, file_begintime, file_endtime, file_type, 0, false, 0);
+          startPlaybackWithControls({ deviceId: devid, channel, type: file_type, begin: file_begintime, end: file_endtime });
           showTab('playback');
         });
         td5.appendChild(btn);
 
         tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4); tr.appendChild(td5);
         $('#historyBody').appendChild(tr);
+      };
+
+      // Playback control logic
+  let currentPB = null; // {deviceId, channel, type, begin, end}
+  let paused = false;
+  let lastTsSec = 0; // current playback time (seconds)
+  let userSeeking = false;
+  let lastUiUpdate = 0;
+
+      function pad2(n){ return String(n).padStart(2,'0'); }
+      function fmtClock(sec){
+        if(!sec || sec < 0) sec = 0;
+        const h = Math.floor(sec/3600);
+        const m = Math.floor((sec%3600)/60);
+        const s = Math.floor(sec%60);
+        return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+      }
+
+      function showControls(show){
+        $('#pbControls').style.display = show ? 'block' : 'none';
+      }
+
+      function updateSeekUI(curSec){
+        if(!currentPB) return;
+        const min = currentPB.begin;
+        const max = currentPB.end;
+        const clamped = Math.max(min, Math.min(max, curSec));
+        const seek = $('#pbSeek');
+        // Set min/max once at start; repeated sets are harmless but we keep stable
+        if(seek.min !== String(min)) seek.min = String(min);
+        if(seek.max !== String(max)) seek.max = String(max);
+        seek.value = String(clamped);
+        $('#pbTimeLabel').textContent = `${fmtClock(clamped - min)} / ${fmtClock(max - min)}`;
+      }
+
+      function restartPlaybackAt(sec){
+        if(!currentPB) return;
+        // Stop current playback to avoid ref leaks, then start from new point
+        try { Player.StopPlayBack(currentPB.deviceId, '', currentPB.channel); } catch(e) { /* ignore */ }
+        Player.StartPlayBack(currentPB.deviceId, '', currentPB.channel, sec, currentPB.end, currentPB.type, 0, false, 0);
+        paused = false;
+        $('#pbPlayPause').textContent = '⏸ Pause';
+      }
+
+      function startPlaybackWithControls(meta){
+        currentPB = meta;
+        showControls(true);
+        updateSeekUI(meta.begin);
+        restartPlaybackAt(meta.begin);
+      }
+
+      // Wire control events
+      $('#pbPlayPause').addEventListener('click', () => {
+        if(!currentPB) return;
+        const devid = currentPB.deviceId;
+        if(!paused){
+          Player.PausePlayBack(devid, '', 0);
+          paused = true;
+          $('#pbPlayPause').textContent = '▶️ Play';
+        } else {
+          Player.ContinuePlayBack(devid, '', 0);
+          paused = false;
+          $('#pbPlayPause').textContent = '⏸ Pause';
+        }
+      });
+
+      $('#pbRew').addEventListener('click', () => {
+        if(!currentPB) return;
+        const target = Math.max(currentPB.begin, (lastTsSec||currentPB.begin) - 10);
+        restartPlaybackAt(target);
+      });
+      $('#pbFf').addEventListener('click', () => {
+        if(!currentPB) return;
+        const target = Math.min(currentPB.end - 1, (lastTsSec||currentPB.begin) + 10);
+        restartPlaybackAt(target);
+      });
+
+      // Seekbar interaction: avoid flicker by suspending UI updates during drag
+      const pbSeek = document.getElementById('pbSeek');
+      pbSeek.addEventListener('pointerdown', () => { userSeeking = true; });
+      pbSeek.addEventListener('pointerup', (e) => {
+        if(!currentPB) { userSeeking = false; return; }
+        const sec = parseInt(e.target.value, 10) || currentPB.begin;
+        restartPlaybackAt(sec);
+        userSeeking = false;
+      });
+      pbSeek.addEventListener('touchstart', () => { userSeeking = true; }, {passive:true});
+      pbSeek.addEventListener('touchend', (e) => {
+        if(!currentPB) { userSeeking = false; return; }
+        const sec = parseInt(pbSeek.value, 10) || currentPB.begin;
+        restartPlaybackAt(sec);
+        userSeeking = false;
+      }, {passive:true});
+      pbSeek.addEventListener('change', (e) => {
+        if(userSeeking) return; // pointerup will handle
+        if(!currentPB) return;
+        const sec = parseInt(e.target.value, 10) || currentPB.begin;
+        restartPlaybackAt(sec);
+      });
+
+      // Track playback time and update slider
+      const _onrecplaybacktimestamp = ConnectApi.onrecplaybacktimestamp;
+      ConnectApi.onrecplaybacktimestamp = function(ts_ms){
+        try { _onrecplaybacktimestamp && _onrecplaybacktimestamp(ts_ms); } catch(_) {}
+        if(!currentPB) return;
+        // Convert ms to seconds; clamp to the record window
+        let curSec = Math.floor(ts_ms/1000);
+        if(curSec < currentPB.begin) curSec = currentPB.begin;
+        if(curSec > currentPB.end) curSec = currentPB.end;
+        lastTsSec = curSec;
+        // Throttle UI updates and avoid fighting with user drag
+        const now = performance.now();
+        if(!userSeeking && (now - lastUiUpdate > 250)){
+          updateSeekUI(curSec);
+          lastUiUpdate = now;
+        }
       };
     </script>
   </body>

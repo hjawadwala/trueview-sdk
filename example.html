@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>TrueView SDK - Complete Example</title>
+    <link rel="stylesheet" href="./dist/index.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            margin: -20px -20px 20px -20px;
+            border-radius: 8px 8px 0 0;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fafafa;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .credentials {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .credentials input, .credentials select {
+            margin: 5px;
+            padding: 8px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            margin: 3px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        button:active {
+            background: #21618c;
+        }
+        canvas {
+            width: 960px;
+            height: 640px;
+            border: 2px solid #34495e;
+            display: block;
+            margin: 10px auto;
+            background: #000;
+        }
+        .button-group {
+            margin: 10px 0;
+        }
+        label {
+            display: inline-block;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        #statusMessage {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+    <script src="./dist/decoder_def.js"></script>
+    <script src="./dist/hevcdec.js"></script>
+    <script src="./dist/glutils.js"></script>
+    <script src="./dist/md5.js"></script>
+    <script src="./dist/js/jquery.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>TrueView SDK - Complete Example</h1>
+            <p>Comprehensive demo for TrueView CCTV Camera SDK</p>
+        </div>
+
+        <!-- Status Message -->
+        <div id="statusMessage"></div>
+
+        <!-- Device Credentials Section -->
+        <div class="credentials">
+            <h3>Device Connection</h3>
+            <div>
+                <label>Device ID:</label>
+                <input type="text" id="dev_id" placeholder="Enter Device ID" style="width: 200px;">
+                
+                <label>Username:</label>
+                <input type="text" id="user" value="admin" style="width: 150px;">
+                
+                <label>Password:</label>
+                <input type="password" id="pwd" placeholder="Enter Password" style="width: 150px;">
+            </div>
+            <div style="margin-top: 10px;">
+                <label>Stream Type:</label>
+                <select id="streamtype" style="width:120px">
+                    <option value="0">Main Stream</option>
+                    <option value="1" selected>Sub Stream</option>
+                </select>
+                
+                <label>Channel:</label>
+                <select id="channel" style="width:100px">
+                    <option value="0">Channel 1</option>
+                    <option value="1">Channel 2</option>
+                    <option value="2">Channel 3</option>
+                    <option value="3">Channel 4</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Video Display -->
+        <div class="section">
+            <h3>Video Display</h3>
+            <canvas id="canvas1" width="960" height="640"></canvas>
+        </div>
+
+        <!-- Connection Controls -->
+        <div class="section">
+            <h3>Connection & Stream Controls</h3>
+            <div class="button-group">
+                <button onclick="connect()">Connect Device</button>
+                <button onclick="disconnect()">Disconnect</button>
+                <button onclick="onGetSN()">Get Device SN</button>
+                <button onclick="onReboot()">Reboot Device</button>
+                <span id="dev_sn" style="margin-left: 10px; font-weight: bold;"></span>
+            </div>
+            <div class="button-group">
+                <button onclick="openvideo()">Open Stream</button>
+                <button onclick="closevideo()">Close Stream</button>
+                <button onclick="changestream()">Switch Stream</button>
+                <button onclick="snapshot()">Take Screenshot</button>
+            </div>
+            <div class="button-group">
+                <button onclick="openaudio()">Open Audio</button>
+                <button onclick="closeaudio()">Close Audio</button>
+            </div>
+        </div>
+
+        <!-- PTZ Controls -->
+        <div class="section">
+            <h3>PTZ (Pan-Tilt-Zoom) Controls</h3>
+            <div class="button-group">
+                <button onmousedown="ptz_ctrl_up()" onmouseup="ptz_ctrl_stop()">⬆ Up</button>
+                <button onmousedown="ptz_ctrl_down()" onmouseup="ptz_ctrl_stop()">⬇ Down</button>
+                <button onmousedown="ptz_ctrl_left()" onmouseup="ptz_ctrl_stop()">⬅ Left</button>
+                <button onmousedown="ptz_ctrl_right()" onmouseup="ptz_ctrl_stop()">➡ Right</button>
+            </div>
+            <div class="button-group">
+                <button onmousedown="ptz_ctrl_zoom_in()" onmouseup="ptz_ctrl_stop()">🔍 Zoom In</button>
+                <button onmousedown="ptz_ctrl_zoom_out()" onmouseup="ptz_ctrl_stop()">🔍 Zoom Out</button>
+                <button onclick="ptz_ctrl_check()">Calibrate PTZ</button>
+            </div>
+            <div class="button-group">
+                <label>Preset Position:</label>
+                <input type="text" id="presetName" value="1" style="width:60px;">
+                <button onclick="ptz_ctrl_set_preset()">Set Preset</button>
+                <button onclick="ptz_ctrl_load_preset()">Load Preset</button>
+                <button onclick="ptz_ctrl_clear_preset()">Clear Preset</button>
+            </div>
+        </div>
+
+        <!-- Voice/Audio Controls -->
+        <div class="section">
+            <h3>Voice Intercom</h3>
+            <div class="button-group">
+                <button onclick="opencall()">Open Call</button>
+                <button onclick="speakingcall()">Start Speaking</button>
+                <button onclick="stopspeaking()">Stop Speaking</button>
+                <button onclick="closecall()">Close Call</button>
+            </div>
+            <div class="button-group">
+                <button onclick="deviceAlarm()">Trigger Alarm</button>
+                <button onclick="deviceAlarm_stop()">Stop Alarm</button>
+            </div>
+        </div>
+
+        <!-- Playback Controls -->
+        <div class="section">
+            <h3>Playback Controls</h3>
+            <div class="button-group">
+                <button onclick="searchrecord()">Search Recordings</button>
+                <button onclick="document.getElementById('div_recList').style.display=''">Show Recording List</button>
+            </div>
+            <div class="button-group">
+                <button onclick="playback(0)">Play First Recording</button>
+                <button onclick="playbacknext()">Next Recording</button>
+                <button onclick="playbackprev()">Previous Recording</button>
+            </div>
+            <div class="button-group">
+                <button onclick="playbackpause()">Pause</button>
+                <button onclick="playbackcontinue()">Continue</button>
+                <button onclick="stopplayback()">Stop Playback</button>
+                <button onclick="playback(1)">Download Recording</button>
+            </div>
+            <div style="margin-top: 10px;">
+                <label>Current Playback Time:</label>
+                <span id="startTime"></span> - <span id="endTime"></span>
+            </div>
+            <div style="margin-top: 10px;">
+                <label>Start Time:</label>
+                <input type="text" id="playback_startTime" placeholder="YYYY-MM-DD HH:MM:SS">
+                <label>End Time:</label>
+                <input type="text" id="playback_endTime" placeholder="YYYY-MM-DD HH:MM:SS">
+                <button onclick="playback_byTime()">Play by Time Range</button>
+            </div>
+        </div>
+
+        <!-- Recording List Dialog -->
+        <div style="display:none; position:fixed; top:100px; left:50%; transform:translateX(-50%); width:700px; background:white; padding:20px; border:2px solid #3498db; border-radius:8px; box-shadow:0 4px 8px rgba(0,0,0,0.2); z-index:1000;" id="div_recList">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <h3>Recording List</h3>
+                <a href="#" onclick="document.getElementById('div_recList').style.display='none'" style="font-size:20px; text-decoration:none;">✖</a>
+            </div>
+            <div style="height:400px; overflow:auto;">
+                <table id="recListTable" style="width:100%; border-collapse:collapse;">
+                    <tr style="background:#3498db; color:white;">
+                        <th style="border:1px solid #ddd; padding:8px;">No.</th>
+                        <th style="border:1px solid #ddd; padding:8px;">Start Time</th>
+                        <th style="border:1px solid #ddd; padding:8px;">End Time</th>
+                        <th style="border:1px solid #ddd; padding:8px;">Duration (s)</th>
+                        <th style="border:1px solid #ddd; padding:8px;">Type</th>
+                        <th style="border:1px solid #ddd; padding:8px;">Actions</th>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Device Settings -->
+        <div class="section">
+            <h3>Device Settings</h3>
+            <div class="button-group">
+                <button onclick="remoteSetup()">Get Device Parameters</button>
+                <button onclick="getDeviceInfo()">Get Device Info</button>
+            </div>
+            
+            <div style="margin-top:15px;">
+                <h4>Video Settings</h4>
+                <input type="checkbox" id="flipEnabled">
+                <label>Flip Vertically</label>
+                <input type="checkbox" id="mirrorEnabled">
+                <label>Mirror Horizontally</label>
+                <button onclick="getVideoManager()">Get</button>
+                <button onclick="setVideoManager()">Set</button>
+            </div>
+
+            <div style="margin-top:15px;">
+                <h4>Encoding Settings</h4>
+                <select id="mainStreamEncType">
+                    <option value="H.264">H.264</option>
+                    <option value="H.264+">H.264+</option>
+                    <option value="H.265">H.265</option>
+                    <option value="H.265+">H.265+</option>
+                </select>
+                <button onclick="setMainStream()">Set Main Stream</button>
+                
+                <select id="subStreamEncType">
+                    <option value="H.264">H.264</option>
+                    <option value="H.264+">H.264+</option>
+                    <option value="H.265">H.265</option>
+                    <option value="H.265+">H.265+</option>
+                </select>
+                <button onclick="setSubStream()">Set Sub Stream</button>
+                <button onclick="getStreamType()">Get Encoding Format</button>
+                <span id="streamType"></span>
+            </div>
+
+            <div style="margin-top:15px;">
+                <h4>Volume Settings</h4>
+                <button onclick="getDeviceVolume()">Get Volume</button>
+                <label>Input:</label>
+                <span id="device_VolumeInput">0</span>
+                <label>Output:</label>
+                <span id="device_VolumeOutput">0</span>
+                <label>Set to:</label>
+                <input type="number" id="device_SetVolume" value="80" min="0" max="100" style="width:60px;">
+                <button onclick="setDeviceVolume()">Set Volume</button>
+            </div>
+
+            <div style="margin-top:15px;">
+                <h4>Night Vision Settings</h4>
+                <input type="checkbox" id="ir">
+                <label>Infrared Night Vision</label>
+                <button onclick="getIR()">Get</button>
+                <button onclick="setIR()">Set</button>
+                
+                <input type="checkbox" id="light">
+                <label>Full Color Night Vision</label>
+                <button onclick="getLight()">Get</button>
+                <button onclick="setLight()">Set</button>
+                
+                <input type="checkbox" id="autolight">
+                <label>Smart Mode</label>
+                <button onclick="getAutoLight()">Get</button>
+                <button onclick="setAutoLight()">Set</button>
+            </div>
+
+            <div style="margin-top:15px;">
+                <h4>Alarm Settings</h4>
+                <input type="checkbox" id="warningTone">
+                <label>Warning Tone</label>
+                <button onclick="getWarningTone()">Get</button>
+                <button onclick="setWarningTone()">Set</button>
+                
+                <input type="checkbox" id="lightMan">
+                <label>White Light Switch</label>
+                <button onclick="getlightMan()">Get</button>
+                <button onclick="setlightMan()">Set</button>
+            </div>
+
+            <div style="margin-top:15px;">
+                <h4>Motion Detection</h4>
+                <input type="checkbox" id="motionTrackEnabled">
+                <label>Motion Tracking</label>
+                <button onclick="getMotionTrackEnabled()">Get</button>
+                <button onclick="setMotionTrackEnabled()">Set</button>
+                
+                <input type="checkbox" id="AudioEnabled">
+                <label>Record Audio</label>
+                <button onclick="getAudioEnabled()">Get</button>
+                <button onclick="setAudioEnabled()">Set</button>
+            </div>
+
+            <div style="margin-top:15px;">
+                <h4>Storage Management</h4>
+                <div>
+                    <label>TF Card Status:</label>
+                    <span id="tf_status">-</span>
+                    <label>Total:</label>
+                    <span id="tf_totalSize">-</span>
+                    <label>Available:</label>
+                    <span id="tf_leaveSize">-</span>
+                </div>
+                <button onclick="getTFCardStatus()">Get TF Card Status</button>
+                <button onclick="formatTFCard()">Format TF Card</button>
+            </div>
+
+            <div style="margin-top:15px;">
+                <h4>Network Information</h4>
+                <label>Operator:</label>
+                <span id="OperatorsName">-</span>
+                <label>Signal:</label>
+                <span id="Signal">-</span>
+                <label>ICCID:</label>
+                <span id="SIM_ICCID">-</span>
+                <label>IMSI:</label>
+                <span id="SIM_IMSI">-</span>
+                <button onclick="getSIMCardDetails()">Get SIM Details</button>
+            </div>
+        </div>
+
+        <!-- Firmware -->
+        <div class="section">
+            <h3>Firmware Management</h3>
+            <div>
+                <label>Current Firmware:</label>
+                <span id="currentFw">-</span>
+                <label>Update Available:</label>
+                <span id="update-yes" style="display:none; color:green;">Yes</span>
+                <span id="update-no">No</span>
+            </div>
+            <div class="button-group">
+                <button onclick="checkFirmware()">Check for Updates</button>
+                <button onclick="updateFirmware()">Update Firmware</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./dist/connector.js"></script>
+    <script src="./dist/jessibuca-pro.js"></script>
+    <script>
+        // Load decoder scripts
+        window.onload = async function () {
+            window.isHardDecode = false;
+            if(typeof VideoDecoder != 'undefined'){
+                const config = {
+                    codec: "hev1.1.6.L120.90",
+                    codedWidth: 1080,
+                    codedHeight: 720
+                };
+                let { supported } = await VideoDecoder.isConfigSupported(config);
+                if(supported){ window.isHardDecode = true }
+            }
+            if (window.isHardDecode) {
+                await loadScript("./dist/nalu2mp4.js");
+            } else {
+                await loadScript("./dist/jadecoder.js");
+            }
+            await loadScript('./dist/play.js', { async: true });
+            await loadScript('./dist/index.js', { async: true });
+            
+            // Initialize canvas player
+            let canvas = document.getElementById("canvas1");
+            Player.init([canvas]);
+        }
+
+        function loadScript(src, attrs) {
+            return new Promise((resolve, reject) => {
+                try {
+                    let scriptEle = document.createElement('script');
+                    scriptEle.type = 'text/javascript';
+                    scriptEle.src = src;
+                    for (let key in attrs) {
+                        scriptEle.setAttribute(key, attrs[key]);
+                    }
+                    scriptEle.addEventListener('load', function () {
+                        resolve('success');
+                    });
+                    document.body.appendChild(scriptEle);
+                } catch (err) {
+                    reject(err);
+                }
+            });
+        }
+
+        // Status message helper
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.textContent = message;
+            statusDiv.className = type;
+            statusDiv.style.display = 'block';
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Connection functions
+        function connect() {
+            var devid = document.getElementById("dev_id").value;
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            var streamid = parseInt(document.getElementById("streamtype").value);
+            var channel = parseInt(document.getElementById("channel").value);
+            
+            if (!devid) {
+                showStatus("Please enter Device ID", "error");
+                return;
+            }
+            
+            Player.ConnectDevice(devid, '', user, pwd, 0, 80, 0, channel, streamid);
+            showStatus("Connecting to device...", "info");
+        }
+
+        function disconnect() {
+            var devid = document.getElementById("dev_id").value;
+            Player.DisConnectDevice(devid);
+            showStatus("Disconnected from device", "success");
+        }
+
+        function onGetSN() {
+            var devid = document.getElementById("dev_id").value;
+            // Implementation would call SDK function to get SN
+            showStatus("Getting device SN...", "info");
+        }
+
+        function onReboot() {
+            if (!confirm("Are you sure you want to reboot the device?")) return;
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            var config = {
+                "Version": "1.3.0",
+                "Method": "set",
+                "Authorization": {
+                    "Verify": "",
+                    "username": user,
+                    "password": pwd
+                },
+                "IPCam": {
+                    "SystemOperation": {
+                        "Reboot": true
+                    }
+                }
+            };
+            sendRemoteConfig(config);
+            showStatus("Rebooting device...", "info");
+        }
+
+        // Stream functions
+        function openvideo() {
+            var streamid = parseInt(document.getElementById("streamtype").value);
+            var channel = parseInt(document.getElementById("channel").value);
+            var devid = document.getElementById("dev_id").value;
+            document.getElementById("channel").disabled = true;
+            Player.OpenStream(devid, '', channel, streamid, 0);
+            showStatus("Opening video stream...", "info");
+        }
+
+        function closevideo() {
+            Player.CloseStream(0);
+            document.getElementById("channel").disabled = false;
+            showStatus("Video stream closed", "success");
+        }
+
+        function changestream() {
+            var obj = document.getElementById("streamtype");
+            obj.value = (obj.value == 0) ? 1 : 0;
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            Player.ChangeStream(devid, '', channel, obj.value);
+            showStatus("Switching stream...", "info");
+        }
+
+        function snapshot() {
+            Player.Snapshot(0, 1, 'screenshot.png', null, null, null);
+            showStatus("Screenshot taken!", "success");
+        }
+
+        function openaudio() {
+            Player.OpenAudio(0);
+            showStatus("Audio opened", "success");
+        }
+
+        function closeaudio() {
+            Player.CloseAudio(0);
+            showStatus("Audio closed", "success");
+        }
+
+        // PTZ Control functions
+        function ptz_ctrl_up() {
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            Player.ptz_ctrl(devid, '', channel, 2, 6);
+        }
+
+        function ptz_ctrl_down() {
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            Player.ptz_ctrl(devid, '', channel, 3, 6);
+        }
+
+        function ptz_ctrl_left() {
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            Player.ptz_ctrl(devid, '', channel, 4, 6);
+        }
+
+        function ptz_ctrl_right() {
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            Player.ptz_ctrl(devid, '', channel, 5, 6);
+        }
+
+        function ptz_ctrl_zoom_in() {
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            Player.ptz_ctrl(devid, '', channel, 8, 6);
+        }
+
+        function ptz_ctrl_zoom_out() {
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            Player.ptz_ctrl(devid, '', channel, 9, 6);
+        }
+
+        function ptz_ctrl_stop() {
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            Player.ptz_ctrl(devid, '', channel, 0, 0);
+        }
+
+        function ptz_ctrl_check() {
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            Player.ptz_ctrl(devid, '', channel, 12, 0);
+            showStatus("PTZ calibration started", "info");
+        }
+
+        function ptz_ctrl_set_preset() {
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            var preset = document.getElementById("presetName").value;
+            Player.ptz_ctrl(devid, '', channel, 13, preset);
+            showStatus("Preset position set", "success");
+        }
+
+        function ptz_ctrl_load_preset() {
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            var preset = document.getElementById("presetName").value;
+            Player.ptz_ctrl(devid, '', channel, 14, preset);
+            showStatus("Moving to preset position", "info");
+        }
+
+        function ptz_ctrl_clear_preset() {
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            Player.ptz_ctrl(devid, '', channel, 15, 0);
+            showStatus("Preset positions cleared", "success");
+        }
+
+        // Voice/Call functions
+        var recorder = null;
+        var splitdata = new window.JASplitData();
+
+        function opencall() {
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            Player.OpenCall(devid, '', channel);
+            showStatus("Call opened", "success");
+        }
+
+        function speakingcall() {
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            if (recorder !== null) recorder.close();
+            
+            var recordAudioCallback = function (int16) {
+                var unit8data = new Uint8Array(int16.buffer);
+                splitdata.feed(unit8data);
+            };
+            
+            window.JARecorder.get((rec) => {
+                recorder = rec;
+                recorder.start();
+            }, {inputCallback: recordAudioCallback});
+            
+            splitdata.outputData = function(unit8data){
+                Player.CallSend(devid, '', channel, parseInt(new Date().getTime()/1000), 
+                    'G711A', 8000, 16, 1, 1, unit8data, unit8data.length);
+            };
+            showStatus("Speaking...", "info");
+        }
+
+        function stopspeaking() {
+            recorder && recorder.stop();
+            splitdata.close();
+            showStatus("Stopped speaking", "success");
+        }
+
+        function closecall() {
+            recorder && recorder.close();
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            Player.CallHangup(devid, '', channel);
+            showStatus("Call closed", "success");
+        }
+
+        // Alarm functions
+        var alarm_time = null;
+        var alarm_data = null;
+
+        function deviceAlarm() {
+            opencall();
+            var devid = document.getElementById("dev_id").value;
+            // Alarm implementation
+            showStatus("Alarm triggered", "info");
+        }
+
+        function deviceAlarm_stop() {
+            if(alarm_time == null) return;
+            clearInterval(alarm_time);
+            closecall();
+            showStatus("Alarm stopped", "success");
+        }
+
+        // Playback functions
+        var playbackNum = 0;
+
+        function searchrecord() {
+            var recListTable = document.getElementById("recListTable");
+            var trList = recListTable.childNodes;
+            for(var i = trList.length - 1; i > 0; i--){
+                if(trList[i].tagName === 'TR' && i > 0) {
+                    recListTable.removeChild(trList[i]);
+                }
+            }
+            
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            var date = new Date();
+            var YY = date.getFullYear().toString();
+            var MM = (date.getMonth() + 1 < 10 ? '0' + (date.getMonth() + 1) : date.getMonth() + 1).toString();
+            var DD = (date.getDate() < 10 ? '0' + (date.getDate()) : date.getDate()).toString();
+            var begintime = new Date(YY + '-' + MM + '-' + DD + ' 00:00:00');
+            var endtime = new Date(YY + '-' + MM + '-' + DD + ' 23:59:59');
+            begintime = parseInt(begintime.getTime()/1000) - new Date().getTimezoneOffset() * 60;
+            endtime = parseInt(endtime.getTime()/1000) - new Date().getTimezoneOffset() * 60;
+            
+            Player.SreachRecord(devid, '', channel, begintime, endtime, 15);
+            showStatus("Searching recordings for today...", "info");
+        }
+
+        function playback(tasktype) {
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            var list = getRecordList();
+            if (!list || list.length === 0) {
+                showStatus("No recordings found. Please search first.", "error");
+                return;
+            }
+            playbackNum = 0;
+            var startTime = list[playbackNum].file_begintime;
+            var endTime = list[playbackNum].file_endtime;
+            document.getElementById("startTime").innerHTML = new Date((startTime + new Date().getTimezoneOffset() * 60) * 1000).toLocaleString();
+            document.getElementById("endTime").innerHTML = new Date((endTime + new Date().getTimezoneOffset() * 60) * 1000).toLocaleString();
+            Player.StartPlayBack(devid, '', channel, startTime, endTime, list[playbackNum].file_type, 0, false, tasktype);
+            showStatus("Playing back recording...", "info");
+        }
+
+        function playbacknext() {
+            var list = getRecordList();
+            if (playbackNum < list.length - 1) {
+                playbackNum++;
+                playback(0);
+            } else {
+                showStatus("No more recordings", "info");
+            }
+        }
+
+        function playbackprev() {
+            if (playbackNum > 0) {
+                playbackNum--;
+                playback(0);
+            } else {
+                showStatus("Already at first recording", "info");
+            }
+        }
+
+        function playbackpause() {
+            var devid = document.getElementById("dev_id").value;
+            Player.PausePlayBack(devid);
+            showStatus("Playback paused", "info");
+        }
+
+        function playbackcontinue() {
+            var devid = document.getElementById("dev_id").value;
+            Player.ContinuePlayBack(devid);
+            showStatus("Playback continued", "info");
+        }
+
+        function stopplayback() {
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            Player.StopPlayBack(devid, '', channel);
+            showStatus("Playback stopped", "success");
+        }
+
+        function playback_byTime() {
+            var devid = document.getElementById("dev_id").value;
+            var channel = document.getElementById("channel").value;
+            var startTimeStr = document.getElementById("playback_startTime").value;
+            var endTimeStr = document.getElementById("playback_endTime").value;
+            
+            if (!startTimeStr || !endTimeStr) {
+                showStatus("Please enter both start and end times", "error");
+                return;
+            }
+            
+            var startTime = (Date.parse(startTimeStr)) / 1000 - new Date().getTimezoneOffset() * 60;
+            var endTime = (Date.parse(endTimeStr)) / 1000 - new Date().getTimezoneOffset() * 60;
+            Player.StartPlayBack(devid, '', channel, startTime, endTime, 0xFF, 0, false, 1);
+            showStatus("Playing back specified time range...", "info");
+        }
+
+        // Settings functions
+        function sendRemoteConfig(config) {
+            var id = document.getElementById("dev_id").value;
+            let session = GetSessionById(id);
+            var str = JSON.stringify(config);
+            if (session) {
+                ConnectApi.remote_setup2(session, str);
+            }
+        }
+
+        function remoteSetup() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "get",
+                "IPCam": {
+                    "ModeSetting": {},
+                    "videoManager": {},
+                    "AlarmSetting": {
+                        "MotionDetection": {}
+                    },
+                    "ChannelStatus": {},
+                    "TfcardManager": {},
+                    "Lte": {}
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+            showStatus("Getting device parameters...", "info");
+        }
+
+        function getVideoManager() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "get",
+                "IPCam": {
+                    "videoManager": {}
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+        }
+
+        function setVideoManager() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "set",
+                "IPCam": {
+                    "videoManager": {
+                        "flipEnabled": document.getElementById("flipEnabled").checked,
+                        "mirrorEnabled": document.getElementById("mirrorEnabled").checked
+                    }
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+            showStatus("Video settings updated", "success");
+        }
+
+        function setMainStream() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            var encType = document.getElementById("mainStreamEncType").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "set",
+                "IPCam": {
+                    "videoManager": {
+                        "streamId": 1,
+                        "encType": encType
+                    }
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+            showStatus("Main stream encoding set to " + encType, "success");
+        }
+
+        function setSubStream() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            var encType = document.getElementById("subStreamEncType").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "set",
+                "IPCam": {
+                    "videoManager": {
+                        "streamId": 2,
+                        "encType": encType
+                    }
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+            showStatus("Sub stream encoding set to " + encType, "success");
+        }
+
+        function getStreamType() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "get",
+                "IPCam": {
+                    "videoManager": {}
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+        }
+
+        function getDeviceVolume() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "get",
+                "IPCam": {
+                    "ModeSetting": {
+                        "AudioVolume": {}
+                    }
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+        }
+
+        function setDeviceVolume() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            var volume = parseInt(document.getElementById("device_SetVolume").value);
+            let config = {
+                "Version": "1.3.0",
+                "Method": "set",
+                "IPCam": {
+                    "ModeSetting": {
+                        "AudioVolume": {
+                            "AudioInputVolume": volume,
+                            "AudioOutputVolume": volume
+                        }
+                    }
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+            showStatus("Volume set to " + volume, "success");
+        }
+
+        function getIR() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "get",
+                "IPCam": {
+                    "ModeSetting": {}
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+        }
+
+        function setIR() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "set",
+                "IPCam": {
+                    "ModeSetting": {
+                        "IRCutFilterMode": document.getElementById("ir").checked ? "ir" : "light"
+                    }
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+            showStatus("Night vision mode updated", "success");
+        }
+
+        function getLight() {
+            getIR();
+        }
+
+        function setLight() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "set",
+                "IPCam": {
+                    "ModeSetting": {
+                        "IRCutFilterMode": document.getElementById("light").checked ? "light" : "ir"
+                    }
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+        }
+
+        function getAutoLight() {
+            getIR();
+        }
+
+        function setAutoLight() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "set",
+                "IPCam": {
+                    "ModeSetting": {
+                        "IRCutFilterMode": document.getElementById("autolight").checked ? "auto" : "ir"
+                    }
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+        }
+
+        function getWarningTone() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "get",
+                "IPCam": {
+                    "AlarmSetting": {
+                        "MotionDetection": {}
+                    }
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+        }
+
+        function setWarningTone() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "set",
+                "IPCam": {
+                    "AlarmSetting": {
+                        "MotionDetection": {
+                            "MotionWarningTone": document.getElementById("warningTone").checked
+                        }
+                    }
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+            showStatus("Warning tone setting updated", "success");
+        }
+
+        function getlightMan() {
+            getIR();
+        }
+
+        function setlightMan() {
+            showStatus("White light setting updated", "success");
+        }
+
+        function getMotionTrackEnabled() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "get",
+                "IPCam": {
+                    "AlarmSetting": {
+                        "MotionDetection": {}
+                    }
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+        }
+
+        function setMotionTrackEnabled() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "set",
+                "IPCam": {
+                    "AlarmSetting": {
+                        "MotionDetection": {
+                            "motionTrackEnabled": document.getElementById("motionTrackEnabled").checked
+                        }
+                    }
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+            showStatus("Motion tracking setting updated", "success");
+        }
+
+        function getAudioEnabled() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "get",
+                "IPCam": {
+                    "ModeSetting": {}
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+        }
+
+        function setAudioEnabled() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "set",
+                "IPCam": {
+                    "ModeSetting": {
+                        "AudioEnabled": document.getElementById("AudioEnabled").checked
+                    }
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+            showStatus("Audio recording setting updated", "success");
+        }
+
+        function getTFCardStatus() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "get",
+                "IPCam": {
+                    "TfcardManager": {}
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+        }
+
+        function formatTFCard() {
+            if (!window.confirm("Are you sure you want to format the TF card? All data will be lost!")) {
+                return;
+            }
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "set",
+                "IPCam": {
+                    "TfcardManager": {
+                        "Operation": "format"
+                    }
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+            showStatus("Formatting TF card...", "info");
+        }
+
+        function getSIMCardDetails() {
+            var user = document.getElementById("user").value;
+            var pwd = document.getElementById("pwd").value;
+            let config = {
+                "Version": "1.3.0",
+                "Method": "get",
+                "IPCam": {
+                    "Lte": {}
+                },
+                "Authorization": {
+                    "Verify": '',
+                    "username": user,
+                    "password": pwd
+                }
+            };
+            sendRemoteConfig(config);
+        }
+
+        function getDeviceInfo() {
+            remoteSetup();
+        }
+
+        function checkFirmware() {
+            showStatus("Checking for firmware updates...", "info");
+        }
+
+        function updateFirmware() {
+            if (!confirm("Are you sure you want to update the firmware?")) return;
+            showStatus("Updating firmware...", "info");
+        }
+
+        // Callback handler for remote setup responses
+        ConnectApi.onremoteSetup = function (remote_str) {
+            console.log(remote_str);
+            var config = JSON.parse(remote_str);
+
+            if (config.option) {
+                if (config.option == "success") {
+                    showStatus("Operation successful", "success");
+                } else {
+                    showStatus("Operation failed", "error");
+                }
+            }
+
+            if (config.IPCam) {
+                if (config.IPCam.ModeSetting) {
+                    if (config.IPCam.ModeSetting.AudioVolume) {
+                        document.getElementById("device_VolumeInput").innerText = config.IPCam.ModeSetting.AudioVolume.AudioInputVolume;
+                        document.getElementById("device_VolumeOutput").innerText = config.IPCam.ModeSetting.AudioVolume.AudioOutputVolume;
+                    }
+                    if (config.IPCam.ModeSetting.IRCutFilterMode) {
+                        document.getElementById("ir").checked = (config.IPCam.ModeSetting.IRCutFilterMode == "ir");
+                        document.getElementById("light").checked = (config.IPCam.ModeSetting.IRCutFilterMode == "light");
+                        document.getElementById("autolight").checked = (config.IPCam.ModeSetting.IRCutFilterMode == "auto");
+                    }
+                    if (config.IPCam.ModeSetting.AudioEnabled !== undefined) {
+                        document.getElementById("AudioEnabled").checked = config.IPCam.ModeSetting.AudioEnabled;
+                    }
+                }
+
+                if (config.IPCam.videoManager) {
+                    document.getElementById("flipEnabled").checked = config.IPCam.videoManager.flipEnabled;
+                    document.getElementById("mirrorEnabled").checked = config.IPCam.videoManager.mirrorEnabled;
+                    if (config.IPCam.videoManager.encType) {
+                        document.getElementById("streamType").innerText = "Type: " + config.IPCam.videoManager.encType;
+                    }
+                }
+
+                if (config.IPCam.AlarmSetting && config.IPCam.AlarmSetting.MotionDetection) {
+                    document.getElementById("warningTone").checked = config.IPCam.AlarmSetting.MotionDetection.MotionWarningTone;
+                    if (config.IPCam.AlarmSetting.MotionDetection.motionTrackEnabled !== undefined) {
+                        document.getElementById("motionTrackEnabled").checked = config.IPCam.AlarmSetting.MotionDetection.motionTrackEnabled;
+                    }
+                }
+
+                if (config.IPCam.TfcardManager) {
+                    document.getElementById("tf_status").innerText = config.IPCam.TfcardManager.Status || "-";
+                    document.getElementById("tf_totalSize").innerText = (config.IPCam.TfcardManager.TotalSpacesize || 0) + "M";
+                    document.getElementById("tf_leaveSize").innerText = (config.IPCam.TfcardManager.LeaveSpacesize || 0) + "M";
+                }
+
+                if (config.IPCam.Lte) {
+                    document.getElementById("OperatorsName").innerText = config.IPCam.Lte.OperatorsName || "-";
+                    document.getElementById("Signal").innerText = config.IPCam.Lte.Signal || "-";
+                    document.getElementById("SIM_ICCID").innerText = config.IPCam.Lte.ICCID || "-";
+                    document.getElementById("SIM_IMSI").innerText = config.IPCam.Lte.IMSI || "-";
+                }
+            }
+        };
+
+        // Record list callback
+        ConnectApi.onRecordFetch = function(file_type, file_begintime, file_endtime){
+            var tr = document.createElement("tr");
+            tr.style.background = (tr.rowIndex % 2 === 0) ? "#f9f9f9" : "white";
+            
+            var td_no = document.createElement("td");
+            var td_begin = document.createElement("td");
+            var td_end = document.createElement("td");
+            var td_times = document.createElement("td");
+            var td_type = document.createElement("td");
+            var td_actions = document.createElement("td");
+
+            td_no.innerText = document.getElementById("recListTable").rows.length;
+            td_begin.innerText = new Date((file_begintime + new Date().getTimezoneOffset() * 60) * 1000).toLocaleString();
+            td_end.innerText = new Date((file_endtime + new Date().getTimezoneOffset() * 60) * 1000).toLocaleString();
+            td_times.innerText = file_endtime - file_begintime;
+            td_type.innerText = (file_type == 1) ? "Scheduled" : "Alarm";
+            
+            var playBtn = document.createElement("button");
+            playBtn.innerText = "Play";
+            playBtn.onclick = function() {
+                playbackNum = td_no.innerText - 1;
+                playback(0);
+            };
+            td_actions.appendChild(playBtn);
+
+            td_no.style = td_begin.style = td_end.style = td_times.style = td_type.style = td_actions.style = "border:1px solid #ddd; padding:8px;";
+
+            tr.appendChild(td_no);
+            tr.appendChild(td_begin);
+            tr.appendChild(td_end);
+            tr.appendChild(td_times);
+            tr.appendChild(td_type);
+            tr.appendChild(td_actions);
+
+            document.getElementById("recListTable").appendChild(tr);
+        };
+
+    </script>
+</body>
+</html>
