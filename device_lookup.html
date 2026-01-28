@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrueView Device Lookup</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: #667eea;
+            font-weight: 600;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result {
+            display: none;
+            background: #f5f5f5;
+            border-radius: 5px;
+            padding: 20px;
+            margin-top: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result.success {
+            border-left-color: #4caf50;
+        }
+
+        .result.error {
+            border-left-color: #f44336;
+        }
+
+        .result h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .result-item {
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .result-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .result-label {
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .result-value {
+            color: #333;
+            font-weight: 600;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 8px;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+
+        .error-message {
+            color: #f44336;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .success-message {
+            color: #4caf50;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .copy-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+            transition: background 0.3s;
+        }
+
+        .copy-btn:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Device Lookup</h1>
+
+        <form id="deviceForm">
+            <div class="form-group">
+                <label for="deviceId">Device ID</label>
+                <input 
+                    type="text" 
+                    id="deviceId" 
+                    placeholder="e.g., 6447078953" 
+                    required
+                >
+            </div>
+
+            <button type="submit" id="submitBtn">Fetch Device Details</button>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Looking up device details...</p>
+        </div>
+
+        <div class="result" id="result">
+            <h2 id="resultTitle"></h2>
+            <div id="resultContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const deviceForm = document.getElementById('deviceForm');
+        const deviceInput = document.getElementById('deviceId');
+        const submitBtn = document.getElementById('submitBtn');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+        const resultTitle = document.getElementById('resultTitle');
+        const resultContent = document.getElementById('resultContent');
+
+        // MD5 hash function using CryptoJS
+        function md5(str) {
+            return CryptoJS.MD5(str).toString();
+        }
+
+        async function fetchDeviceDetails(deviceId) {
+            try {
+                loading.style.display = 'block';
+                result.style.display = 'none';
+
+                // Step 1: Get nonce
+                const nonceResponse = await fetch('https://openapi.dvr163.com/message/nonce?method=get');
+                const nonceData = await nonceResponse.json();
+                
+                const nonce = nonceData.nonce;
+                const requestId = nonceData.request_id;
+
+                if (!nonce || !requestId) {
+                    throw new Error('Failed to get nonce from server');
+                }
+
+                // Step 2: Calculate verify hash
+                const verifyString = nonce.toUpperCase() + deviceId + requestId.toUpperCase() + 'Japass^2>.j';
+                const verifyHash = md5(verifyString);
+
+                // Step 3: Get device details
+                const deviceUrl = `https://openapi.dvr163.com/device/device?method=get_sn&id=${deviceId}&request_id=${requestId}&verify=${verifyHash}`;
+                const deviceResponse = await fetch(deviceUrl);
+                const deviceData = await deviceResponse.json();
+
+                loading.style.display = 'none';
+                result.classList.remove('error');
+                result.classList.add('success');
+                result.style.display = 'block';
+
+                resultTitle.textContent = '✅ Device Found';
+                resultContent.innerHTML = `
+                    <div class="result-item">
+                        <div class="result-label">Serial Number (SN)</div>
+                        <div class="result-value">${deviceData.sn || 'N/A'}</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-label">IPv4</div>
+                        <div class="result-value">${deviceData.ipv4 || 'N/A'}</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-label">P2P Port</div>
+                        <div class="result-value">${deviceData.tcpport || 'N/A'}</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-label">P2P Key (apconv)</div>
+                        <div class="result-value">${deviceData.apconv || 'N/A'}</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-label">TURN Key (amconv)</div>
+                        <div class="result-value">${deviceData.amconv || 'N/A'}</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-label">Session ID (sid)</div>
+                        <div class="result-value">${deviceData.sid || 'N/A'}</div>
+                    </div>
+                `;
+
+            } catch (error) {
+                loading.style.display = 'none';
+                result.classList.remove('success');
+                result.classList.add('error');
+                result.style.display = 'block';
+
+                resultTitle.textContent = '❌ Error';
+                resultContent.innerHTML = `
+                    <div class="error-message">${error.message}</div>
+                    <p style="margin-top: 10px; color: #666; font-size: 14px;">
+                        Note: The API might have CORS restrictions. Try using a CORS proxy or check browser console.
+                    </p>
+                `;
+                console.error('Detailed error:', error);
+            }
+        }
+
+        deviceForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const deviceId = deviceInput.value.trim();
+            
+            if (!deviceId) {
+                alert('Please enter a device ID');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Loading...';
+
+            fetchDeviceDetails(deviceId).finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Fetch Device Details';
+            });
+        });
+
+        // Auto-fill example for testing
+        deviceInput.placeholder = 'e.g., 6447078953';
+    </script>
+</body>
+</html>
