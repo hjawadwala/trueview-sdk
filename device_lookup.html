@@ -244,25 +244,13 @@
                 loading.style.display = 'block';
                 result.style.display = 'none';
 
-                // Step 1: Get nonce
-                const nonceResponse = await fetch('https://openapi.dvr163.com/message/nonce?method=get');
-                const nonceData = await nonceResponse.json();
-                
-                const nonce = nonceData.nonce;
-                const requestId = nonceData.request_id;
+                // Call local server API which handles authentication
+                const response = await fetch(`/api/lookup?id=${deviceId}`);
+                const data = await response.json();
 
-                if (!nonce || !requestId) {
-                    throw new Error('Failed to get nonce from server');
+                if (data.error) {
+                    throw new Error(data.error);
                 }
-
-                // Step 2: Calculate verify hash
-                const verifyString = nonce.toUpperCase() + deviceId + requestId.toUpperCase() + 'Japass^2>.j';
-                const verifyHash = md5(verifyString);
-
-                // Step 3: Get device details
-                const deviceUrl = `https://openapi.dvr163.com/device/device?method=get_sn&id=${deviceId}&request_id=${requestId}&verify=${verifyHash}`;
-                const deviceResponse = await fetch(deviceUrl);
-                const deviceData = await deviceResponse.json();
 
                 loading.style.display = 'none';
                 result.classList.remove('error');
@@ -270,32 +258,62 @@
                 result.style.display = 'block';
 
                 resultTitle.textContent = '✅ Device Found';
-                resultContent.innerHTML = `
+                
+                let resultHTML = `
                     <div class="result-item">
                         <div class="result-label">Serial Number (SN)</div>
-                        <div class="result-value">${deviceData.sn || 'N/A'}</div>
-                    </div>
+                        <div class="result-value">${data.sn || 'N/A'}</div>
+                    </div>`;
+                
+                if (data.ipv4) {
+                    resultHTML += `
                     <div class="result-item">
-                        <div class="result-label">IPv4</div>
-                        <div class="result-value">${deviceData.ipv4 || 'N/A'}</div>
-                    </div>
+                        <div class="result-label">IPv4 Address</div>
+                        <div class="result-value">${data.ipv4}</div>
+                    </div>`;
+                }
+                
+                if (data.tcpport) {
+                    resultHTML += `
                     <div class="result-item">
-                        <div class="result-label">P2P Port</div>
-                        <div class="result-value">${deviceData.tcpport || 'N/A'}</div>
-                    </div>
+                        <div class="result-label">P2P TCP Port</div>
+                        <div class="result-value">${data.tcpport}</div>
+                    </div>`;
+                }
+                
+                if (data.apconv) {
+                    resultHTML += `
                     <div class="result-item">
-                        <div class="result-label">P2P Key (apconv)</div>
-                        <div class="result-value">${deviceData.apconv || 'N/A'}</div>
-                    </div>
+                        <div class="result-label">P2P Connection Key (apconv)</div>
+                        <div class="result-value">${data.apconv}</div>
+                    </div>`;
+                }
+                
+                if (data.amconv) {
+                    resultHTML += `
                     <div class="result-item">
-                        <div class="result-label">TURN Key (amconv)</div>
-                        <div class="result-value">${deviceData.amconv || 'N/A'}</div>
-                    </div>
+                        <div class="result-label">TURN Relay Key (amconv)</div>
+                        <div class="result-value">${data.amconv}</div>
+                    </div>`;
+                }
+                
+                if (data.sid) {
+                    resultHTML += `
                     <div class="result-item">
                         <div class="result-label">Session ID (sid)</div>
-                        <div class="result-value">${deviceData.sid || 'N/A'}</div>
-                    </div>
-                `;
+                        <div class="result-value">${data.sid}</div>
+                    </div>`;
+                }
+                
+                if (data.extconv) {
+                    resultHTML += `
+                    <div class="result-item">
+                        <div class="result-label">Extended Conversion (extconv)</div>
+                        <div class="result-value">${data.extconv}</div>
+                    </div>`;
+                }
+                
+                resultContent.innerHTML = resultHTML;
 
             } catch (error) {
                 loading.style.display = 'none';
@@ -307,7 +325,10 @@
                 resultContent.innerHTML = `
                     <div class="error-message">${error.message}</div>
                     <p style="margin-top: 10px; color: #666; font-size: 14px;">
-                        Note: The API might have CORS restrictions. Try using a CORS proxy or check browser console.
+                        Make sure the Python backend server is running:<br>
+                        <code style="background: #f0f0f0; padding: 5px; border-radius: 3px; display: inline-block; margin-top: 5px;">
+                        python3 device_lookup_server.py
+                        </code>
                     </p>
                 `;
                 console.error('Detailed error:', error);
